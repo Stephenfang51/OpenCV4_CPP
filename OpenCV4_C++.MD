@@ -1,6 +1,6 @@
 <h1 align="center">OpenCV 4 C++</h1>
 
-<h5 align='right' > update 2019.12.21</h5>
+<h5 align='right' > update 2019.12.24</h5>
 
 > ### 目录
 >
@@ -8,6 +8,8 @@
 > 2. 加载图像
 > 3. 对视频or摄像头读取
 > 4. 各类型(Vec, Scalar, Point, Size, Rect)
+>
+> CMakeLists.txt 编写
 
 
 
@@ -20,6 +22,8 @@
 > <h3 align="center" id="">基本</h3>
 
 图像是以矩阵格式来存储, OpenCV用Mat类来达到存储目的
+
+
 
 如下公式可以访问任何像素
 
@@ -250,6 +254,48 @@ Mat img = imread("lena,jpg");
 Rect rect_roi(0, 0, 100, 100);
 Mat img_roi = img(r);
 ```
+
+
+
+> <h3 align="center" id="">CMakeLists.txt 编写</h3>
+
+
+
+情况
+
+```
+Hello 文件夹
+├── CMakeLists.txt
+├── cmake-build-debug
+├── main.cpp
+└── src
+```
+
+
+
+CMakeLists.txt 编写范例
+
+```cmake
+cmake_minimum_required(VERSION 3.15)
+project(Hello)
+
+
+set(CMAKE_CXX_STANDARD 14)
+find_package(OpenCV REQUIRED)
+message("OpenCV version: " ${OpenCV_VERSION})
+#openCV
+include_directories(${OpenCV_INCLUDE_DIRS})
+link_directories(${OpenCV_LIB_DIR})
+
+#set source file
+set(src main.cpp)
+
+
+add_executable(${PROJECT_NAME} ${src})
+target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+```
+
+
 
 
 

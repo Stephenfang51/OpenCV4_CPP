@@ -1,6 +1,8 @@
-<h1 align="center">OpenCV 4 C++</h1>
+<h1 align="center">OpenCV4 C++</h1>
 
-<h5 align='right' > update 2019.12.24</h5>
+为何编写该笔记， 因为网上各种博文写的太垃圾， 于是自己写一份人人都能迅速理解的笔记， 免费供大家查阅
+
+<h5 align='right' > update 2020.1.6</h5>
 
 > ### 目录
 >
@@ -8,8 +10,13 @@
 > 2. 加载图像
 > 3. 对视频or摄像头读取
 > 4. 各类型(Vec, Scalar, Point, Size, Rect)
+> 5. API
+>    - 目录待编辑***
 >
 > CMakeLists.txt 编写
+>
+> 6. others
+>    - 目录待编辑***
 
 
 
@@ -163,7 +170,29 @@ int main()
 
 > <h3 align="center" id="">对视频or摄像头读取</h3>
 
-主要是用VideoCapture 类
+
+
+#### cv::VideoCapture() 类 读取视频or读取摄像头画面
+
+VideoCapture构造函数如下
+
+- videoCapture()
+
+- VideoCapture(const String & filename)
+
+- VideoCapture(const String & filename, int apiPreference)
+
+- VideoCapture(int index)
+
+
+
+VideoCapture cap(0)  带入0 表示开启默认摄像头
+
+VideoCapture cap("xxxx.mp4") 也可以传入video文件， 也能像下面这样
+
+VideoCapture cap("img_%02d.jpg") 传入图像img_00.jpg, img_01.jpg, img_02.jpg
+
+
 
 ```c++
 VideoCapture cap; //open the default camera
@@ -189,6 +218,38 @@ cap.release();
 ```
 
 
+
+#### 计算FPS 并显示在图像
+
+Example
+
+```c++
+#include <ctime> //for recored time
+
+
+long frameCounter = 0;
+std::time_t timeBegin = std::time(0);
+int tick = 0;
+int fps = 0;
+cv::Mat frame;
+
+while(true)
+{
+    cap.read(frame);
+    frameCounter++;
+    std::time_t timeNow = std::time(0) - timeBegin; //计算时间
+    if (timeNow - tick >= 1)
+    {
+      tick++;
+      //            std::cout << "Frames per second: " << frameCounter << std::endl;
+      fps = frameCounter;
+      frameCounter = 0;
+    }
+    cv::putText(frame, cv::format("Average FPS=%d",fps),
+                cv::Point(30, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0,0,255));
+    cv::imshow("CSI Camera",frame); 
+}
+```
 
 
 
@@ -252,8 +313,118 @@ int area = s.area(); //returns 100x200
 ```c++
 Mat img = imread("lena,jpg");
 Rect rect_roi(0, 0, 100, 100);
-Mat img_roi = img(r);
+Mat img_roi = img(r); //原图 从左上x:0 y:0的位置 取height, width = 100进行剪裁
 ```
+
+
+
+
+
+
+
+
+
+------
+
+> <h3 align="center" id="">API</h3>
+
+#### convertTo()
+
+void convertTo( OutputArray m, int rtype, double alpha=1, double beta=0 ) const
+
+把一个矩阵从一种数据类型转换到另一种数据类型，同时可以带上缩放因子和增量，公式如下：
+
+```cpp
+m(x,y) = saturate_cast<rType>(alpha * (*this) (x,y) + beta);
+```
+
+> m       – 目标矩阵。如果m在运算前没有合适的尺寸或类型，将被重新分配。
+>
+> rtype – 目标矩阵的类型。因为目标矩阵的通道数与源矩阵一样，所以rtype也可以看做是目标矩阵的位深度。如果rtype为负值，目标矩阵和源矩阵将使用同样的类型。
+>
+> alpha – 尺度变换因子（可选）。默认值是1。即把原矩阵中的每一个元素都乘以alpha。
+>
+> beta   – 附加到尺度变换后的值上的偏移量（可选）。默认值是0。即把原矩阵中的每一个元素都乘以alpha，再加上beta。
+
+
+
+#### cv::putText()
+
+将编辑好的文字放在图像img上
+
+void cv::putText (intputoutputarray img, const String & text, Point org, int fontFace,o double fontscale, Scalar color, int thickness = 1, int lineType = LINE_8,  bool bottomLeftOrigin = false)
+
+
+
+
+
+#### cv::getTextSize() 
+
+Size cv::getTextSize(const String & text, int fontFace, double fontScale, int thickness, int * baseLine)
+
+输入传入的text以及给定的字体大小等 计算出需要的长度和宽度
+
+- text 输入的文本
+
+- fontFace 是字体类型
+
+- fontScale 字体大小
+- thickness字体粗细
+- BaseLine 文字最底部y坐标
+
+
+
+Example
+
+```c++
+String text = "Funny text inside the box";
+int fontFace = FONT_HERSHEY_SCRIPT_SIMPLEX;
+double fontScale = 2;
+int thickness = 3;
+Mat img(600, 800, CV_8UC3, Scalar::all(0));
+int baseline=0;
+Size textSize = getTextSize(text, fontFace,
+                            fontScale, thickness, &baseline);
+baseline += thickness;
+// center the text
+Point textOrg((img.cols - textSize.width)/2,
+              (img.rows + textSize.height)/2);
+// draw the box
+rectangle(img, textOrg + Point(0, baseline),
+          textOrg + Point(textSize.width, -textSize.height),
+          Scalar(0,0,255));
+// ... and the baseline first
+line(img, textOrg + Point(0, thickness),
+     textOrg + Point(textSize.width, thickness),
+     Scalar(0, 0, 255));
+// then put the text itself
+putText(img, text, textOrg, fontFace, fontScale,
+        Scalar::all(255), thickness, 8);
+```
+
+
+
+#### cv::rectangle() 绘制矩形
+
+Void cv::rectangle(inputoutputarray img, Point pt1, Point2 pt2, const Scalar & color, int thickness = -1, int lineType = LINE_8, int shift = 0)
+
+- Img ： image
+- pt1 : 左上坐标点
+- pt2 : 右下坐标点
+- color : 框的颜色
+- thickness ：框的厚度
+- lineType：线条样式
+- Shift ： 几乎不用， 默认为0
+
+
+
+
+
+
+
+
+
+------
 
 
 
@@ -341,4 +512,70 @@ CommnadLineParser parser(argc, argv, keys);
 ```
 
 
+
+#### CSI camera 开启webcam方式
+
+代码参考 [https://github.com/JetsonHacksNano/CSI-Camera/blob/master/simple_camera.cpp](https://github.com/JetsonHacksNano/CSI-Camera/blob/master/simple_camera.cpp)
+
+Example
+
+```c++
+
+// #include <iostream>
+#include <opencv2/opencv.hpp>
+// #include <opencv2/videoio.hpp>
+// #include <opencv2/highgui.hpp>
+
+std::string gstreamer_pipeline (int capture_width, int capture_height, int display_width, int display_height, int framerate, int flip_method) {
+    return "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)" + std::to_string(capture_width) + ", height=(int)" +
+           std::to_string(capture_height) + ", format=(string)NV12, framerate=(fraction)" + std::to_string(framerate) +
+           "/1 ! nvvidconv flip-method=" + std::to_string(flip_method) + " ! video/x-raw, width=(int)" + std::to_string(display_width) + ", height=(int)" +
+           std::to_string(display_height) + ", format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink";
+}
+
+int main()
+{
+    int capture_width = 1280 ;
+    int capture_height = 720 ;
+    int display_width = 1280 ;
+    int display_height = 720 ;
+    int framerate = 60 ;
+    int flip_method = 0 ;
+
+    std::string pipeline = gstreamer_pipeline(capture_width,
+	capture_height,
+	display_width,
+	display_height,
+	framerate,
+	flip_method);
+    std::cout << "Using pipeline: \n\t" << pipeline << "\n";
+ 
+    cv::VideoCapture cap(pipeline, cv::CAP_GSTREAMER);
+    if(!cap.isOpened()) {
+	std::cout<<"Failed to open camera."<<std::endl;
+	return (-1);
+    }
+
+    cv::namedWindow("CSI Camera", cv::WINDOW_AUTOSIZE);
+    cv::Mat img;
+
+    std::cout << "Hit ESC to exit" << "\n" ;
+    while(true)
+    {
+    	if (!cap.read(img)) {
+		std::cout<<"Capture read error"<<std::endl;
+		break;
+	}
+	
+	cv::imshow("CSI Camera",img);
+	int keycode = cv::waitKey(30) & 0xff ; 
+        if (keycode == 27) break ;
+    }
+
+    cap.release();
+    cv::destroyAllWindows() ;
+    return 0;
+}
+
+```
 

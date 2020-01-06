@@ -13,9 +13,9 @@
 > 5. API
 >    - 目录待编辑***
 >
-> CMakeLists.txt 编写
+> 6. CMakeLists.txt 编写
 >
-> 6. others
+> 7. others
 >    - 目录待编辑***
 
 

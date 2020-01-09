@@ -2,7 +2,7 @@
 
 为何编写该笔记， 因为网上各种博文写的太垃圾， 于是自己写一份人人都能迅速理解的笔记， 免费供大家查阅
 
-<h5 align='right' > update 2020.1.6</h5>
+<h5 align='right' > update 2020.1.9</h5>
 
 > ### 目录
 >
@@ -15,7 +15,9 @@
 >
 > 6. CMakeLists.txt 编写
 >
-> 7. others
+> 7. Gstream
+>
+> 8. others
 >    - 目录待编辑***
 
 
@@ -50,7 +52,7 @@ Mat gray = imread("test.jpg", CV_LOAD_IMAGE_GRAYSCALE); //指定读取为灰度�
 
 
 
-访问图像的行或者列
+#### 访问图像的行或者列
 
 ```c++
 int MyRaw = color.cols-1;
@@ -59,7 +61,7 @@ int MyCol = color.rows-1;
 
 
 
-访问图像中的某个像素
+#### 访问图像中的某个像素
 
 ```c++
 //cv::Mat::at<typename>(row, col)
@@ -71,7 +73,7 @@ cout << "Pixel value (B, G, R): (" << (int)pixel[0] << ", " << (int)pixel[1] << 
 
 
 
-展示图像
+#### 展示图像
 
 ```C++
 imshow("Test_bgr", color);
@@ -83,13 +85,13 @@ waitkey表示等待用户按下某个键就关闭窗口， 0表示任何键
 
 
 
-resize图像
+#### resize图像
 
 `cv2.resize(src, dsize[, dst[, fx[, fy[, interpolation]]]]) → dst`
 
 
 
-创造一个空白图像 fill with zeros
+#### 创造一个空白图像 fill with zeros
 
 ```
 cv::Mat::zeros()
@@ -97,7 +99,7 @@ cv::Mat::zeros()
 
 
 
-将mat的内容copy到mat2
+#### 将mat的内容copy到mat2
 
 ```
 mat.copyTo(mat2)
@@ -109,7 +111,7 @@ mat.copyTo(mat2)
 
 
 
-将图像通道分类及合并 cv::split / cv::merge
+#### 将图像通道分类及合并 cv::split / cv::merge
 
 https://blog.csdn.net/guduruyu/article/details/70837779
 
@@ -166,13 +168,33 @@ int main()
 
 
 
+#### 改变图像色彩空间
+
+```C++
+void cv::cvtColor	(	InputArray 	src, OutputArray 	dst, int 	code, int dstCn = 0 )	
+```
+
+- code 主要包含各种色彩转换接口
+  - https://docs.opencv.org/3.4/d8/d01/group__imgproc__color__conversions.html#ga4e0972be5de079fed4e3a10e24ef5ef0
+- dstCn : 输出的图像的通道数， 默认为0表示跟原图像一样
+
+
+
+------
+
 
 
 > <h3 align="center" id="">对视频or摄像头读取</h3>
 
 
 
-#### cv::VideoCapture() 类 读取视频or读取摄像头画面
+#### 对视频or摄像头（webcam）进行读取
+
+```
+cv::VideoCapture() 类 
+```
+
+
 
 VideoCapture构造函数如下
 
@@ -216,6 +238,33 @@ for (;;)
 //记得释放掉资源
 cap.release();
 ```
+
+
+
+#### 保存视频 VideoWriter
+
+```c++
+cv::VideoWriter::VideoWriter
+```
+
+VideoWriter主要构造函数如下
+
+```c++
+cv::VideoWriter::VideoWriter	(	const String & 	filename, int 	fourcc, double 	fps, Size 	frameSize, bool 	isColor = true )
+
+  
+cv::VideoWriter::VideoWriter	(	const String & 	filename, int 	apiPreference,
+int 	fourcc, double 	fps, Size 	frameSize, bool 	isColor = true 
+)	
+```
+
+fps：以多大的帧率保存*
+
+frameSize：图像的大小，size类型
+
+sColor：是否是彩色图像*
+
+
 
 
 
@@ -328,7 +377,7 @@ Mat img_roi = img(r); //原图 从左上x:0 y:0的位置 取height, width = 100�
 
 > <h3 align="center" id="">API</h3>
 
-#### convertTo()
+#### convertTo()  转换数据类型
 
 void convertTo( OutputArray m, int rtype, double alpha=1, double beta=0 ) const
 
@@ -352,15 +401,17 @@ m(x,y) = saturate_cast<rType>(alpha * (*this) (x,y) + beta);
 
 将编辑好的文字放在图像img上
 
+```c++
 void cv::putText (intputoutputarray img, const String & text, Point org, int fontFace,o double fontscale, Scalar color, int thickness = 1, int lineType = LINE_8,  bool bottomLeftOrigin = false)
-
-
+```
 
 
 
 #### cv::getTextSize() 
 
+```c++
 Size cv::getTextSize(const String & text, int fontFace, double fontScale, int thickness, int * baseLine)
+```
 
 输入传入的text以及给定的字体大小等 计算出需要的长度和宽度
 
@@ -472,44 +523,11 @@ target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 
 
 
-> <h3 align="center" id="">其他</h3>
+------
 
 
 
-
-
-随机产生数字Random Number Generator
-
-cv::RNG 类
-
-https://docs.opencv.org/master/d1/dd6/classcv_1_1RNG.html#details
-
-
-
-randomColor
-
-
-
-
-
-### CommandLineParser 管理命令行参数
-
-主要先在常量char向量中定义需要或允许的参数
-
-```
-const char* keys = 
-{
-	"{help h usage ? | | print this message}" #定义help参数
-	"{@video | | Video file, if not defined try to use webcamera}"
-}
-
-#格式依照如下
-"{name_param | default_value | description}"
-name_param 可以@开头， 将参数定义为默认输入
-
-
-CommnadLineParser parser(argc, argv, keys);
-```
+> <h3 align="center" id="">Gstreamer</h3>
 
 
 
@@ -520,7 +538,6 @@ CommnadLineParser parser(argc, argv, keys);
 Example
 
 ```c++
-
 // #include <iostream>
 #include <opencv2/opencv.hpp>
 // #include <opencv2/videoio.hpp>
@@ -578,4 +595,132 @@ int main()
 }
 
 ```
+
+#### CSI camera Video Write的方式
+
+```C++
+cv::VideoWriter writer;
+    writer.open("appsrc ! autovideoconvert ! omxh265enc ! matroskamux ! filesink location=test.mkv ", 0, (double)25, cv::Size(1024, 1024), true);
+```
+
+
+
+
+
+
+
+#### 问题合集
+
+
+
+**问题** execute:532 Failed to create CaptureSession CSI摄像头无法正常开启, 需要reboot 设备才行
+
+**原因** 应该是前面使用的gstreamer未正常关闭or释放
+
+**解决** 
+
+python version
+
+```python
+def gstreamer_auto(self):
+return ('nvarguscamerasrc ! '
+'video/x-raw(memory:NVMM), format=NV12, '
+'width=3280, height=2464, '
+'framerate=10/1 ! '
+'nvvidconv flip-method=2 ! '
+'video/x-raw, format=I420 ! '
+'appsink max-buffers=1 drop=True ')
+```
+
+c++ version 
+
+```c++
+std::string gstreamer_pipeline (int capture_width, int capture_height, int display_width, int display_height, int framerate, int flip_method) {
+    return "nvarguscamerasrc ! video/x-raw(memory:NVMM), width=(int)" + std::to_string(capture_width) + ", height=(int)" +
+           std::to_string(capture_height) + ", format=(string)NV12, framerate=(fraction)" + std::to_string(framerate) +
+           "/1 ! nvvidconv flip-method=" + std::to_string(flip_method) + " ! video/x-raw, width=(int)" + std::to_string(display_width) + ", height=(int)" +
+           std::to_string(display_height) + ", format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink max-buffers=1 drop=True ";
+}
+```
+
+
+
+参考https://devtalk.nvidia.com/default/topic/1066047/jetson-nano/how-to-free-restart-the-gstreamer-nvarguscamerasrc-module/
+
+
+
+**问题**
+
+OpenCV Error: Unsupported format or combination of formats (cvWriteFrame() needs images with depth = IPL_DEPTH_8U and nChannels = 3.) in CvVideoWriter_GStreamer::writerFrame
+
+**原因** 
+
+需要将图像进行类型转换利用 convertTo(), 类型为CV_8UC3
+
+**解决**
+
+https://devtalk.nvidia.com/default/topic/985594/general-graphics-programming/how-to-write-video-frames-from-visionworks-to-gstreamer-pipe/
+
+
+
+#### info
+
+[jetson Nano GStreamer example pipelines for H264 H265 and VP8 decoding](https://developer.ridgerun.com/wiki/index.php?title=Jetson_Nano/Gstreamer/Example_Pipelines/Decoding)
+
+------
+
+
+
+> <h3 align="center" id="">其他</h3>
+
+
+
+
+
+随机产生数字Random Number Generator
+
+cv::RNG 类
+
+https://docs.opencv.org/master/d1/dd6/classcv_1_1RNG.html#details
+
+
+
+randomColor
+
+
+
+
+
+### CommandLineParser 管理命令行参数
+
+主要先在常量char向量中定义需要或允许的参数
+
+```
+const char* keys = 
+{
+	"{help h usage ? | | print this message}" #定义help参数
+	"{@video | | Video file, if not defined try to use webcamera}"
+}
+
+#格式依照如下
+"{name_param | default_value | description}"
+name_param 可以@开头， 将参数定义为默认输入
+
+
+CommnadLineParser parser(argc, argv, keys);
+```
+
+
+
+
+
+
+
+
+
+**问题**
+
+OpenCV Error: Assertion failed (scn == 3 || scn == 4) in cv::cvtColor
+
+说明cvtColor声明失败
 

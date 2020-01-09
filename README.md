@@ -5,8 +5,6 @@ OpenCV4 工具书， 快速查阅用法
 
 ### 目录
 
-### 目录
-
 1. 基本
 2. 加载图像
 3. 对视频or摄像头读取
@@ -16,8 +14,12 @@ OpenCV4 工具书， 快速查阅用法
 
 6. CMakeLists.txt 编写
 
-7. others
+7. Gstream
+
+8. others
    - 目录待编辑***
+   
+> update 2020.1.9 更新Gstream
 
 > udpate 2020.1.6 更新
 

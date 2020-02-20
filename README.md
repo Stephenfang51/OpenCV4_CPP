@@ -19,6 +19,8 @@ OpenCV4 工具书， 快速查阅用法
 8. others
    - 目录待编辑***
    
+> udpate 2020.2.20 更新VideoWriter
+   
 > update 2020.1.9 更新Gstream
 
 > udpate 2020.1.6 更新

@@ -2,7 +2,7 @@
 
 为何编写该笔记， 因为网上各种博文写的太垃圾， 于是自己写一份人人都能迅速理解的笔记， 免费供大家查阅
 
-<h5 align='right' > update 2020.1.9</h5>
+<h5 align='right' > update 2020.2.20</h5>
 
 > ### 目录
 >
@@ -12,11 +12,8 @@
 > 4. 各类型(Vec, Scalar, Point, Size, Rect)
 > 5. API
 >    - 目录待编辑***
->
 > 6. CMakeLists.txt 编写
->
 > 7. Gstream
->
 > 8. others
 >    - 目录待编辑***
 
@@ -180,6 +177,16 @@ void cv::cvtColor	(	InputArray 	src, OutputArray 	dst, int 	code, int dstCn = 0 
 
 
 
+#### 存取图像
+
+```c++
+bool cv::imwrite	(	const String & 	filename, InputArray 	img, const std::vector< int > & 	params = std::vector< int >())
+```
+
+- filename : Name of the file.
+- img : Image to be saved.
+- params : Format-specific parameters encoded as pairs (paramId_1, paramValue_1, paramId_2, paramValue_2, ... .) see [cv::ImwriteFlags](https://docs.opencv.org/3.4/d4/da8/group__imgcodecs.html#ga292d81be8d76901bff7988d18d2b42ac)
+
 ------
 
 
@@ -199,11 +206,8 @@ cv::VideoCapture() 类
 VideoCapture构造函数如下
 
 - videoCapture()
-
 - VideoCapture(const String & filename)
-
 - VideoCapture(const String & filename, int apiPreference)
-
 - VideoCapture(int index)
 
 
@@ -243,6 +247,8 @@ cap.release();
 
 #### 保存视频 VideoWriter
 
+要保存视频需要先创建一个writer实例， 设置好一切的参数
+
 ```c++
 cv::VideoWriter::VideoWriter
 ```
@@ -250,19 +256,54 @@ cv::VideoWriter::VideoWriter
 VideoWriter主要构造函数如下
 
 ```c++
-cv::VideoWriter::VideoWriter	(	const String & 	filename, int 	fourcc, double 	fps, Size 	frameSize, bool 	isColor = true )
+//1
+cv::VideoWriter::VideoWriter	(	
+  const String & 	filename, 
+  int 	fourcc, 
+  double 	fps, 
+  Size 	frameSize, 
+  bool 	isColor = true )
 
-  
+//2  
 cv::VideoWriter::VideoWriter	(	const String & 	filename, int 	apiPreference,
 int 	fourcc, double 	fps, Size 	frameSize, bool 	isColor = true 
 )	
 ```
 
-fps：以多大的帧率保存*
+- fps：以多大的帧率保存*
+- Fourcc ： 四字符code表示压缩帧的方式
+  - 可参考 http://www.fourcc.org/codecs.php
 
-frameSize：图像的大小，size类型
+- frameSize：图像的大小，size类型
 
-sColor：是否是彩色图像*
+- isColor：是否是彩色图像*
+
+Ex.
+
+```c++
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+ 
+using namespace cv;
+ 
+void main()
+{
+	VideoCapture capture(0);
+	VideoWriter writer("VideoTest.avi", CV_FOURCC('M', 'J', 'P', 'G'), 25.0, Size(640, 480));
+	Mat frame;
+	
+	while (capture.isOpened())
+	{
+		capture >> frame; //读取每一帧, 用法相当于read()
+		writer << frame; //保存每一帧， 用法相当于write()
+		imshow("video", frame);
+		if (cvWaitKey(20) == 27)
+		{
+			break;
+		}
+	}
+}
+```
 
 
 
@@ -333,12 +374,28 @@ Scalar s2(s1);//靠另一个值赋予值
 
 #### Point 对象类型
 
+主要用来描述2D坐标平面上的点 （x, y)
+
 ```c++
 typedef Point_<int> Point2i;
 typedef POint2i Point;
 typedef Point_<float> POint2f;
 typedef Point_<double> POint2d;
 ```
+
+Ex.
+
+```c++
+Point pt;
+pt.x = 10;
+pt.y = 8;
+
+// 或者如下
+
+Point pt =  Point(10, 8);
+```
+
+
 
 #### Size对象类型
 
@@ -377,9 +434,29 @@ Mat img_roi = img(r); //原图 从左上x:0 y:0的位置 取height, width = 100�
 
 > <h3 align="center" id="">API</h3>
 
+#### namedWindows()
+
+```c++
+void namedWindow(const string& winname, int flags=WINDOW_AUTOSIZE )
+```
+
+**name** – window的名字， 也可用来辨别是否为同一个视窗
+
+**flags** –Flags of the window. The supported flags are:
+
+​	- WINDOW_NORMAL ： 如果设定为这个， 则user可以自行resize window
+
+​	- WINDOW_AUTOSIZE ： 如果设定这个， user不能自己resize window， 会自动的调整成要display的图像一样
+
+​	- WINDOW_OPENGL  如果设定这个， 则可以support openGL
+
 #### convertTo()  转换数据类型
 
+```c++
 void convertTo( OutputArray m, int rtype, double alpha=1, double beta=0 ) const
+```
+
+
 
 把一个矩阵从一种数据类型转换到另一种数据类型，同时可以带上缩放因子和增量，公式如下：
 
@@ -405,7 +482,15 @@ m(x,y) = saturate_cast<rType>(alpha * (*this) (x,y) + beta);
 void cv::putText (intputoutputarray img, const String & text, Point org, int fontFace,o double fontscale, Scalar color, int thickness = 1, int lineType = LINE_8,  bool bottomLeftOrigin = false)
 ```
 
-
+- img : Image.
+- text: Text string to be drawn.
+- org : Bottom-left corner of the text string in the image.
+- fontFace : Font type, see [HersheyFonts](https://docs.opencv.org/3.4/d0/de1/group__core.html#ga0f9314ea6e35f99bb23f29567fc16e11).
+- fontScale : Font scale factor that is multiplied by the font-specific base size.
+- color : Text color.
+- thickness : Thickness of the lines used to draw a text.
+- lineType: Line type. See [LineTypes](https://docs.opencv.org/3.4/d0/de1/group__core.html#gaf076ef45de481ac96e0ab3dc2c29a777)
+- bottomLeftOrigin : When true, the image data origin is at the bottom-left corner. Otherwise, it is at the top-left corner.
 
 #### cv::getTextSize() 
 
@@ -416,9 +501,7 @@ Size cv::getTextSize(const String & text, int fontFace, double fontScale, int th
 输入传入的text以及给定的字体大小等 计算出需要的长度和宽度
 
 - text 输入的文本
-
 - fontFace 是字体类型
-
 - fontScale 字体大小
 - thickness字体粗细
 - BaseLine 文字最底部y坐标
@@ -655,7 +738,7 @@ OpenCV Error: Unsupported format or combination of formats (cvWriteFrame() needs
 
 **原因** 
 
-需要将图像进行类型转换利用 convertTo(), 类型为CV_8UC3
+需要将图像进行类型转换利用 convertTo(), 类型为
 
 **解决**
 

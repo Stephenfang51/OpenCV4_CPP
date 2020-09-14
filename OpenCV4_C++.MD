@@ -1,8 +1,8 @@
-<h1 align="center">OpenCV4 C++</h1>
+<h1 align="center">OpenCV C++</h1>
 
-为何编写该笔记， 因为网上各种博文写的太垃圾， 于是自己写一份人人都能迅速理解的笔记， 免费供大家查阅
+为何编写该笔记， 因为网上各种博文写的太垃圾， 于是自己写一份人人都能迅速理解的笔记， 免费供大家查阅， 以下内容以Opencv 3.4.8 C++ API接口 为基础， 同时也会有C接口 (OpenCV 2.4.8)补充说明
 
-<h5 align='right' > update 2020.9.4</h5>
+<h5 align='right' > update 2020.9.14</h5>
 
 ### 目录
 
@@ -10,9 +10,10 @@
 >
 > 1. 基本
 > 2. 图像处理
-> 3. 对视频or摄像头读取
-> 4. 各类型(Vec, Scalar, Point, Size, Rect)
-> 5. API
+> 3. 模板匹配
+> 4. 对视频or摄像头读取
+> 5. 各类型(Vec, Scalar, Point, Size, Rect)
+> 6. API
 >
 > - 目录待编辑***
 >
@@ -36,7 +37,7 @@ brew install opencv
 
 
 
-CMakelist中务必配置
+CMakelist中配置
 
 ```cmake
 #opencv
@@ -50,7 +51,7 @@ link_directories(${OpenCV_LIB_DIR})
 target_link_libraries(xxxx ${OpenCV_LIBS}) //xxxx表示自己的执行文件名称
 ```
 
-### 基本
+### 1. 基本
 
 #### Mat
 
@@ -214,6 +215,20 @@ m5:
 
 
 
+#### IplImage 
+
+OpenCV 早期版本图像存储的结构体
+
+
+
+创建图像
+
+```c++
+IplImage * src_img = cvCreateImage(cvSize, depth, channel)
+```
+
+
+
 
 
 #### 常用头文件
@@ -236,7 +251,7 @@ m5:
 
 
 
-### 图像处理
+### 2. 图像处理
 
 #### 加载图像
 
@@ -305,7 +320,7 @@ cv::resize(src, dst, Size(xxx, xxx), 0, 0, INTER_LINEAR)
 
 
 
-#### 创造一个像素点全为0的图像 fill with zeros
+#### 创造一个像素点全为0的图像
 
 ```
 cv::Mat::zeros()
@@ -315,12 +330,42 @@ cv::Mat::zeros()
 
 #### 图像ROI区域选定
 
+C++
+
 ex. 在原图上 利用`cv::Rect`选定出roi区域， 可以在此roi上做变化， 比如改变颜色之类的
 
 ```c++
 Mat orange = imread("./images/orange.png");
 
 Mat roi = orange(Rect(0, 0, apple.cols, apple.rows));
+```
+
+
+
+C 
+
+C的方法主要是将原图变为roi
+
+```c
+void cvSetImageROI(IplImage* image, CvRect rect)
+```
+
+用法
+
+```
+//比如要取
+cvSetImageROI(src_img, cvRect(150, 150, 100, 100)); //这时候原图已经变成roi的区域了
+
+
+cvShowImage("test", src_img); //这时候会发现显示的已经是roi区域， 而不是原图大小
+
+//可取得roi的宽高信息
+src_img->roi->width;
+src_img->roi->height;
+
+
+//释放roi， 变回原来的图像
+cvResetImageROI(src_img);
 ```
 
 
@@ -384,7 +429,7 @@ cout << mat2 << endl;   // [1,1,1,1,1]
 
 
 
-#### 图像基础运算
+#### 图像运算符操作
 
 比如两幅图像可以相加、相减、相乘、相除、位运算、平方根、对数、绝对值等；图像也可以放大、缩小、旋转，还可以截取其中的一部分作为ROI（感兴趣区域）进行操作，各个颜色通道还可以分别提取及对各个颜色通道进行各种运算操作。总之，对于图像可以进行的基本运算非常的多，只是挑了些常用的操作详解
 
@@ -526,9 +571,11 @@ int 	borderType = BORDER_DEFAULT
 
 
 
-#### 阈值threshold
+#### 阈值处理 Threshold
 
-对array上的每个像素进行阈值处理
+对图像矩阵上每一个像素点进行处理
+
+C++ 
 
 ```c++
 double cv::threshold	(	InputArray 	src, OutputArray 	dst, double 	thresh, double 	maxval,
@@ -538,6 +585,34 @@ int type )
 - Thresh : threshold value.
 - maxval : maximum value to use with the [THRESH_BINARY](https://docs.opencv.org/4.2.0/d7/d1b/group__imgproc__misc.html#ggaa9e58d2860d4afa658ef70a9b1115576a147222a96556ebc1d948b372bcd7ac59) and [THRESH_BINARY_INV](https://docs.opencv.org/4.2.0/d7/d1b/group__imgproc__misc.html#ggaa9e58d2860d4afa658ef70a9b1115576a19120b1a11d8067576cc24f4d2f03754) thresholding types.
 - threshold type :查看https://docs.opencv.org/4.2.0/d7/d1b/group__imgproc__misc.html#gaa9e58d2860d4afa658ef70a9b1115576
+
+
+
+C
+
+```c
+C: double cvThreshold(const CvArr* src, CvArr* dst, double threshold, double max_value, int threshold_type)
+```
+
+threshold 就是自己设置的阈值
+
+max_value 就是当像素值大于阈值的时候， 给与的值为多少？
+
+
+
+
+
+##### 二值化
+
+```c++
+
+```
+
+
+
+
+
+
 
 #### 霍夫检测（线， 圆）
 
@@ -852,7 +927,7 @@ Parameters
 
 - src : source image
 - Dst : 与source一样size的目标图像
-- op ： 形态学操作 [MorphTypes](https://docs.opencv.org/4.2.0/d4/d86/group__imgproc__filter.html#ga7be549266bad7b2e6a04db49827f9f32)
+- op ： 形态学操作， 见下面表格
 - kernel ： 就是利用getStructuringElement 制作的kernel
 - anchor ： 
 - iteration：erosion or dilation的次数
@@ -861,7 +936,39 @@ Parameters
 
 
 
+
+
+形态操作类型
+
+erosion https://www.youtube.com/watch?v=rP1KZb3llCY
+
+Erosion 动画解释 https://www.youtube.com/watch?v=b5lgnNEzGeU
+
+dailation 动画图解 https://www.youtube.com/watch?v=3IJ8RFtlDLY
+
+| MORPH_ERODE Python: cv.MORPH_ERODE       | see [erode](https://docs.opencv.org/3.4.8/d4/d86/group__imgproc__filter.html#gaeb1e0c1033e3f6b891a25d0511362aeb) |
+| ---------------------------------------- | ------------------------------------------------------------ |
+| MORPH_DILATE Python: cv.MORPH_DILATE     | see [dilate](https://docs.opencv.org/3.4.8/d4/d86/group__imgproc__filter.html#ga4ff0f3318642c4f469d0e11f242f3b6c) |
+| MORPH_OPEN Python: cv.MORPH_OPEN         | an opening operation 𝚍𝚜𝚝=open(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=dilate(erode(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)) |
+| MORPH_CLOSE Python: cv.MORPH_CLOSE       | a closing operation𝚍𝚜𝚝=close(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=erode(dilate(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)) |
+| MORPH_GRADIENT Python: cv.MORPH_GRADIENT | a morphological gradient𝚍𝚜𝚝=morph_grad(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=dilate(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)−erode(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝) |
+| MORPH_TOPHAT Python: cv.MORPH_TOPHAT     | "top hat"𝚍𝚜𝚝=tophat(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=𝚜𝚛𝚌−open(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)       |
+| MORPH_BLACKHAT Python: cv.MORPH_BLACKHAT | "black hat"𝚍𝚜𝚝=blackhat(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=close(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)−𝚜𝚛𝚌  |
+| MORPH_HITMISS Python: cv.MORPH_HITMISS   | "hit or miss" .- Only supported for CV_8UC1 binary images. A tutorial can be found in the documentation |
+
+
+
+
+
 #### 轮廓
+
+##### 找出轮廓
+
+**ref** : https://blog.csdn.net/asukasmallriver/article/details/76718701
+
+基于二值图或者是灰度图 进行轮廓查找， 找到的轮廓将以点集合的方式存储在容器中
+
+主要需要熟悉contours 的存储方式
 
 ```c++
 void cv::findContours	(	InputArray 	image,
@@ -873,14 +980,18 @@ Point 	offset = Point()
 )	
 ```
 
-基于二值图像上找到轮廓，基于 [[216]](https://docs.opencv.org/4.2.0/d0/de3/citelist.html#CITEREF_Suzuki85), 轮廓对于检测及识别是形状分析是很好的工具
-
 - image : source image 二值图
 - contours ： 找到的轮廓， 存储的方式为`vector< vector<Point> >`, point存储的就是属于这个轮廓的坐标， vector 存储属于这个轮廓的所有坐标点， 外圈vector存储所有的轮廓
-- hierachy ：Optional output vector (e.g. std::vector<cv::Vec4i>), containing information about the image topology. It has as many elements as the number of contours. For each i-th contour contours[i], the elements hierarchy[i][0] , hierarchy[i][1] , hierarchy[i][2] , and hierarchy[i][3] are set to 0-based indices in contours of the next and previous contours at the same hierarchical level, the first child contour and the parent contour, respectively. If for the contour i there are no next, previous, parent, or nested contours, the corresponding elements of hierarchy[i] will be negative.
-- mode ：轮廓获取的模式
+- hierachy ：存储在 `vector<Vec4i>`  分别表示第 i个轮廓的**后****一个轮廓、前一个轮廓、父轮廓、内嵌轮廓的索引编号**。如果当前轮廓没有对应的后一个轮廓、前一个轮廓、父轮廓或内嵌轮廓的话，则hierarchy[i][0] ~hierarchy[i][3]的相应位被设置为默认值-1
+- mode ：轮廓获取的模式 参考https://docs.opencv.org/3.4.8/d3/dc0/group__imgproc__shape.html#ga819779b9857cc2f8601e6526a3a5bc71
 - method ：轮廓近似的方法， 用最少的顶点连成形状[ContourApproximationModes](https://docs.opencv.org/4.2.0/d3/dc0/group__imgproc__shape.html#ga4303f45752694956374734a03c54d5ff)
 - Offset : 设置轮廓的点的偏移值， 当轮廓从image的roi找出来， 但需要从整张图来分析的时候
+
+
+
+
+
+##### 轮廓的面积
 
 ```c++
 double cv::contourArea	(	InputArray 	contour,
@@ -892,7 +1003,34 @@ bool 	oriented = false
 
 
 
-### 画出边界框
+##### 画出轮廓
+
+藉由找到的轮廓点集， 可以在图像上画出轮廓线条
+
+```c++
+void cv::drawContours	(	InputOutputArray 	image,
+        InputArrayOfArrays 	contours,
+        int 	contourIdx,
+        const Scalar & 	color,
+        int 	thickness = 1,
+        int 	lineType = LINE_8,
+        InputArray 	hierarchy = noArray(),
+        int 	maxLevel = INT_MAX,
+        Point 	offset = Point() 
+)	
+```
+
+thickness 如果填入FILLED的话， 轮廓内会被填满颜色
+
+
+
+
+
+
+
+##### 画出边界框
+
+传入找到的轮廓点集， 可以找到最小矩形框， return 一个Rect 类型
 
 ```c++
 Rect cv::boundingRect	(	InputArray 	array	)	
@@ -901,6 +1039,70 @@ Rect cv::boundingRect	(	InputArray 	array	)
 找到可以用最小矩形框出物体的（x, y, w, h)
 
 - array :输入灰度图 或者 2d点集合（vector or mat）
+
+
+
+example
+
+```c++
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
+using namespace cv;
+using namespace std;
+int main( int argc, char** argv )
+{
+    Mat src;
+    // the first command-line parameter must be a filename of the binary
+    // (black-n-white) image
+    if( argc != 2 || !(src=imread(argv[1], 0)).data)
+        return -1;
+    Mat dst = Mat::zeros(src.rows, src.cols, CV_8UC3);
+    src = src > 1;
+    namedWindow( "Source", 1 );
+    imshow( "Source", src );
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    findContours( src, contours, hierarchy,
+        RETR_CCOMP, CHAIN_APPROX_SIMPLE );
+    // iterate through all the top-level contours,
+    // draw each connected component with its own random color
+    int idx = 0;
+    for( ; idx >= 0; idx = hierarchy[idx][0] )
+    {
+        Scalar color( rand()&255, rand()&255, rand()&255 );
+        drawContours( dst, contours, idx, color, FILLED, 8, hierarchy );
+    }
+    namedWindow( "Components", 1 );
+    imshow( "Components", dst );
+    waitKey(0);
+}
+```
+
+
+
+##### 最小多边形/顶点逼近轮廓
+
+传入找到的轮廓， 算法先从轮廓选择2个最远的点，然后将2个连成一个线段，然后再查找轮廓上到线段距离最远的点，添加到逼近后的新轮廓。算法反复迭代，不断将最远的点添加到结果中。直到所有的点到多边形的最短距离小于parameter参数指定的精度。
+
+C++
+
+```c++
+void cv::approxPolyDP	(	InputArray 	curve,
+    OutputArray 	approxCurve,
+    double 	epsilon,
+    bool 	closed 
+    )	
+```
+
+C
+
+```c
+CvSeq* cvApproxPoly(const void* src_seq, int header_size, CvMemStorage* storage, int method, double eps, int recursive=0 )
+```
+
+
+
+
 
 
 
@@ -1088,9 +1290,76 @@ const double 	confidence = 0.995
 
 ------
 
+### 3. 模板匹配
+
+给定一个原图， 在给定一个与想要从原图中搜索出的模板图
+
+```c
+void cvMatchTemplate	(	const CvArr * 	image,
+  const CvArr * 	templ,
+  CvArr * 	result,
+  int 	method 
+  )	
+```
+
+Example
+
+编写一个快速取得roi的函数， 然后先从原图中取得要找的模板， 然后给一张测试图片进行测试， 看能否在测试图片中也能找到目标
+
+```c++
+IplImage* get_ipl_roi(IplImage* src, CvRect rect)
+{
+	/*
+	1. 传入原图跟需要得到的roi区域
+	2. 创建一个空图用来获取roi
+	3. 将原图上roi区域copy到空图然后返回
+	*/
+	cvSetImageROI(src, rect); 
+	IplImage* tmp = cvCreateImage(cvSize(src->roi->width, src->roi->height), src->depth, src->nChannels);
+	cvCopy(src, tmp, NULL);
+	cvResetImageROI(src);
 
 
-### 对视频or摄像头读取
+	return tmp;
+}
+
+
+
+IplImage * src_img = cvLoadImage("./images/OK.bmp"); //取得模板用的原图
+IplImage * test_img = cvLoadImage("./images/test.bmp");//测试图片
+IplImage * template_roi = get_ipl_roi(src_img, cvRect(468, 31, 47, 37)); //从原图得到要查找的模板
+
+
+
+cvSetImageROI(test_img, cvRect(410, 0, 150, 100)); //测试图片取roi ：上黑格子
+IplImage * result = cvCreateImage(cvSize(test_img->roi->width - black->width +1, test_img->roi->height - black->height +1), 32, 1); //空画布用来存放结果
+
+
+cvMatchTemplate(test_img, template_roi, result, 0);
+
+
+CvPoint minPoint;
+CvPoint maxPoint;
+double* minVal = 0;
+double* maxVal = 0;
+cvMinMaxLoc(result, minVal, maxVal, &minPoint, &maxPoint);
+
+
+cvRectangle(test_img, minPoint, cv::Point(minPoint.x + black->width, minPoint.y + black->height), cv::Scalar(0, 255, 0), 2, 8);
+cvShowImage("【匹配后的图像】", test_img);
+cvRectangle(result, minPoint, cv::Point(minPoint.x + black->width, minPoint.y + black->height), cv::Scalar(0, 0, 0), 3, 8);
+cvShowImage("【匹配后的计算过程图像】", result);
+cv::waitKey(0);
+
+```
+
+
+
+------
+
+
+
+### 4. 对视频or摄像头读取
 
 
 
@@ -1290,9 +1559,9 @@ while(true)
 
 ------
 
-### 各类型
+### 5. 各类型
 
-#### Vec 对象类型
+#### Vec 对象类型 
 
 数值向量的模板类， 定义向量的类型和组件的数量
 
@@ -1355,7 +1624,9 @@ int area = s.area(); //returns 100x200
 
 #### Rect 对象
 
-可以用来定义ROI（region of interest, 简称ROI)
+就是矩形对象
+
+也可以用来定义ROI（region of interest, 简称ROI)
 
 `Rect_(_Tp _x, _Tp _y, _Tp _width, _Tp _height)`
 
@@ -1367,9 +1638,15 @@ Rect rect_roi(0, 0, 100, 100);
 Mat img_roi = img(r); //原图 从左上x:0 y:0的位置 取height, width = 100进行剪裁
 ```
 
+#### C 接口
 
+CvSize
 
+CvRect
 
+CvPoint
+
+CvScalar
 
 
 
@@ -1776,6 +2053,4 @@ CV_64FC1   CV_64FC2  CV_64FC3  CV_64FC4
 
 ### 参考资料
 
-
-
-待编辑
+OpenCV 文档目录 https://docs.opencv.org/

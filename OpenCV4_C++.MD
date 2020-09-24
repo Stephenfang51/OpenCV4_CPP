@@ -2,7 +2,11 @@
 
 为何编写该笔记， 因为网上各种博文写的太垃圾， 于是自己写一份人人都能迅速理解的笔记， 免费供大家查阅， 以下内容以Opencv 3.4.8 C++ API接口 为基础， 同时也会有C接口 (OpenCV 2.4.8)补充说明
 
-<h5 align='right' > update 2020.9.14</h5>
+
+
+对于图像处理应该要有一个观念， 通常为了解决问题会使用到库中的许多函数， 非万不得已不应该传入整张图， 会降低整体运行的效率， 因此opencv中Mat 类型就是针对这样的理念进行设计， 请看到图像处理的篇章
+
+<h5 align='right' > update 2020.9.17</h5>
 
 ### 目录
 
@@ -10,9 +14,9 @@
 >
 > 1. 基本
 > 2. 图像处理
-> 3. 模板匹配
-> 4. 对视频or摄像头读取
-> 5. 各类型(Vec, Scalar, Point, Size, Rect)
+> 3. 各类型(Vec, Scalar, Point, Size, Rect)
+> 4. 模板匹配
+> 5. 对视频or摄像头读取
 > 6. API
 >
 > - 目录待编辑***
@@ -55,13 +59,35 @@ target_link_libraries(xxxx ${OpenCV_LIBS}) //xxxx表示自己的执行文件名�
 
 #### Mat
 
-主要用来存储图像
+在早期OpenCV中(OpenCV 1.x)大量使用`IplImage`、`CvMat`实现数据处理，其需要手动进行内存管理，使用不是很方便。到OpenCV 2.x版本后引入C++面向对象思想，重构了代码，引入`Mat`。作为升级，`Mat`存储的数据结构与`CvMat`、`IplImage`等完全兼容，也和`Numpy(ndarray)`兼容
+
+Mat是一个类， 由两个数据组合而成， 矩阵头（矩阵尺寸， 存储方法， 存储信息等）， 和一个指向存储所有像素值的矩阵的指针
+
+```c++
+Mat A, B; //创建信息头
+A = imread("test.jpg", CV_LOAD_IMAGE_COLOR); //为矩阵开辟内存
+Mat B(A); //使用拷贝构造函数
+C = A; //赋值运算符
+
+```
+
+以上所有的**Mat对象指向同一个数据矩阵**， 实际上不同的对象只是访问相同的数据不同途径而已
+
+最后谁来清理Mat对象？记得C++接口不需要考虑清理问题
+
+Mat采用引用计数， 无论什么时候复制Mat对象都会增加矩阵的引用次数， 当一个信息头被释放， 次数减一， 当计数值为零， 矩阵被清理
+
+某些时候想复制矩阵本身， 可以用函数**clone()**, 或者是**copyTo()** 
+
+**ref 2** 
 
 Ref http://zhaoxuhui.top/blog/2019/08/24/OpenCV-Mat-Note.html
 
-在早期OpenCV中(OpenCV 1.x)大量使用`IplImage`、`CvMat`实现数据处理，其需要手动进行内存管理，使用不是很方便。到OpenCV 2.x版本后引入C++面向对象思想，重构了代码，引入`Mat`。作为升级，`Mat`存储的数据结构与`CvMat`、`IplImage`等完全兼容，也和`Numpy(ndarray)`兼容
-
 创建`Mat`有多种方法，常见的有以下几种, 可以一一对照
+
+1. 直接Mat的构造函数
+2. create() 函数 ： 此方法不能重新赋值初值， 只是重新开辟内存
+3. eyes(), zeros(), ones() 分别都是Mat类型的成员函数
 
 ```c++
 #include <iostream>
@@ -217,7 +243,7 @@ m5:
 
 #### IplImage 
 
-OpenCV 早期版本图像存储的结构体
+OpenCV 早期版本C接口图像存储的结构体， 推出之前还需要release掉， 否则造成内存泄露， 
 
 
 
@@ -225,6 +251,15 @@ OpenCV 早期版本图像存储的结构体
 
 ```c++
 IplImage * src_img = cvCreateImage(cvSize, depth, channel)
+```
+
+
+
+转换为Mat类型, 为IplImage 创建信息头
+
+```c++
+IplImage * src_img = cvCreateImage(cvSize, depth, channel)；
+Mat src(src_img); 
 ```
 
 
@@ -255,10 +290,18 @@ IplImage * src_img = cvCreateImage(cvSize, depth, channel)
 
 #### 加载图像
 
+参数有两个 
+
+1. const * filename， 就是图片路径
+2. 第二个是flag， default为1， 默认为三通道， 0为灰度图
+
+
+
 ```c++
 Mat color = imread("test.jpg"); //读取为彩色图像
 
 Mat gray = imread("test.jpg", CV_LOAD_IMAGE_GRAYSCALE); //指定读取为灰度图
+
 ```
 
 
@@ -268,6 +311,7 @@ Mat gray = imread("test.jpg", CV_LOAD_IMAGE_GRAYSCALE); //指定读取为灰度�
 ```c++
 int MyRaw = color.cols-1;
 int MyCol = color.rows-1;
+
 ```
 
 
@@ -278,6 +322,7 @@ int MyCol = color.rows-1;
 //cv::Mat::at<typename>(row, col)
 Vec3b pixel = color.at<Vec3b>(myRow, myCol);
 cout << "Pixel value (B, G, R): (" << (int)pixel[0] << ", " << (int)pixel[1] << ", " << (int)pixel[2]<<")" << endl;
+
 ```
 
 8位彩色图像的类型是Vec3b （Vec = 向量， 3 = 组件数， b = 一个字节）
@@ -290,6 +335,7 @@ cout << "Pixel value (B, G, R): (" << (int)pixel[0] << ", " << (int)pixel[1] << 
 imshow("Test_bgr", color);
 imshow("Test_gray", gray);
 waitkey(0); 
+
 ```
 
 waitkey表示等待用户按下某个键就关闭窗口， 0表示任何键
@@ -308,23 +354,29 @@ double 	fx = 0,
 double 	fy = 0,
 int interpolation = INTER_LINEAR 
 )
+
 ```
 
 Ex.
 
 ```c++
 cv::resize(src, dst, Size(xxx, xxx), 0, 0, INTER_LINEAR)
+
+```
+
+
+
+#### 随机填充矩阵
+
+Randu()函数, 可给定随机数的上限以及下限值
+
+```
+Mat x = Mat(10, 3, CV_8UC3);
+randu(x, Scalar::all(0), Scalar::all(255));
+
 ```
 
 
-
-
-
-#### 创造一个像素点全为0的图像
-
-```
-cv::Mat::zeros()
-```
 
 
 
@@ -338,6 +390,7 @@ ex. 在原图上 利用`cv::Rect`选定出roi区域， 可以在此roi上做变�
 Mat orange = imread("./images/orange.png");
 
 Mat roi = orange(Rect(0, 0, apple.cols, apple.rows));
+
 ```
 
 
@@ -348,6 +401,7 @@ C的方法主要是将原图变为roi
 
 ```c
 void cvSetImageROI(IplImage* image, CvRect rect)
+
 ```
 
 用法
@@ -366,6 +420,7 @@ src_img->roi->height;
 
 //释放roi， 变回原来的图像
 cvResetImageROI(src_img);
+
 ```
 
 
@@ -378,16 +433,14 @@ cvResetImageROI(src_img);
 
 第一个功能其实就是把输入图像完完全全拷贝到输出图像上，并且将输出图像的大小调整成输入图像的大小
 
-```
+```c++
 void copyTo( OutputArray m ) const;
-```
-
-
-
-
 
 ```
+
+```c++
 void copyTo(OutputArray m, InputArray mask) const;
+
 ```
 
 也就是参数可以是一张输出图像，或者一张输出图像和一个掩码图
@@ -397,10 +450,6 @@ void copyTo(OutputArray m, InputArray mask) const;
 
 
 **clone()**
-
-
-
-
 
 区别： 当目标矩阵与源矩阵具有相同的type和size时，copyTo不会为目标矩阵重新分配内存
 
@@ -422,6 +471,7 @@ Mat mat3 = Mat::zeros(1, 5, CV_32F);   // [0,0,0,0,0]
 mat1 = mat3.clone();   // mat1被重新分配内存，通过mat1不能改变mat2的内容
 cout << mat1 << endl;   // [0,0,0,0,0]
 cout << mat2 << endl;   // [1,1,1,1,1]
+
 
 ```
 
@@ -445,6 +495,7 @@ void sqrt(InputArray src, OutputArray dst);//计算每个矩阵元素的平方�
 void pow(InputArray src, double power, OutputArray dst);//src的power次幂
 void exp(InputArray src, OutputArray dst);//dst = e**src（**表示指数的意思）
 void log(InputArray src, OutputArray dst);//dst = log(abs(src))
+
 ```
 
 
@@ -454,6 +505,7 @@ void bitwise_and(InputArray src1, InputArray src2,OutputArray dst, InputArray ma
 void bitwise_or(InputArray src1, InputArray src2,OutputArray dst, InputArray mask=noArray());//dst = src1 | src2
 void bitwise_xor(InputArray src1, InputArray src2,OutputArray dst, InputArray mask=noArray());//dst = src1 ^ src2
 void bitwise_not(InputArray src, OutputArray dst,InputArray mask=noArray());//dst = ~src
+
 
 ```
 
@@ -521,7 +573,7 @@ int main()
 
 
 
-#### 改变图像色彩空间
+#### 图像色彩空间转换
 
 ```C++
 void cv::cvtColor	(	InputArray 	src, OutputArray 	dst, int 	code, int dstCn = 0 )	
@@ -537,10 +589,11 @@ void cv::cvtColor	(	InputArray 	src, OutputArray 	dst, int 	code, int dstCn = 0 
 
 ```c++
 bool cv::imwrite	(	const String & 	filename, InputArray 	img, const std::vector< int > & 	params = std::vector< int >())
+
 ```
 
-- filename : Name of the file.
-- img : Image to be saved.
+- filename : Name of the file. 务必加上后缀比如 "test.jpg"
+- img : Image to be saved. 通常会是Mat
 - params : Format-specific parameters encoded as pairs (paramId_1, paramValue_1, paramId_2, paramValue_2, ... .) see [cv::ImwriteFlags](https://docs.opencv.org/3.4/d4/da8/group__imgcodecs.html#ga292d81be8d76901bff7988d18d2b42ac)
 
 #### 图像去噪 - 滤波器
@@ -557,6 +610,7 @@ double 	sigmaX,
 double 	sigmaY = 0,
 int 	borderType = BORDER_DEFAULT 
 )
+
 ```
 
 | src        | input image; the image can have any number of channels, which are processed independently, but the depth should be CV_8U, CV_16U, CV_16S, CV_32F or CV_64F. |
@@ -580,6 +634,7 @@ C++
 ```c++
 double cv::threshold	(	InputArray 	src, OutputArray 	dst, double 	thresh, double 	maxval,
 int type )	
+
 ```
 
 - Thresh : threshold value.
@@ -592,6 +647,7 @@ C
 
 ```c
 C: double cvThreshold(const CvArr* src, CvArr* dst, double threshold, double max_value, int threshold_type)
+
 ```
 
 threshold 就是自己设置的阈值
@@ -636,6 +692,7 @@ void cv::HoughLines(
 // Unnormalized accumulator threshold 
 // rho refinement (for MHT) 
 // theta refinement (for MHT)
+
 ```
 
 ```c++
@@ -647,6 +704,7 @@ int 	threshold,
 double 	minLineLength = 0,
 double 	maxLineGap = 0 
 )
+
 ```
 
 
@@ -677,6 +735,7 @@ double 	param2 = 100,
 int 	minRadius = 0,
 int 	maxRadius = 0 
 )	
+
 ```
 
 
@@ -697,6 +756,7 @@ void HoughCircles( InputArray image,
                   double param2=100,
 									int minRadius=0, 
                   int maxRadius=0 );
+
 ```
 
 第一个参数image是输入图像矩阵，要求是灰度图像；
@@ -776,6 +836,7 @@ canny算子是一种更系统性的边缘检测算子，其使用sobel算子作�
 
 ```c++
 void Canny(InputArray image,OutputArray edges, double threshold1, double threshold2, int apertureSize=3,bool L2gradient=false )
+
 ```
 
 第一个参数，InputArray类型的image，输入图像，即源图像，填Mat类的对象即可，且需为单通道8位图像。
@@ -804,6 +865,7 @@ InputArray src,//输入图
  double scale=1,
  double delta=0,
  int borderType=BORDER_DEFAULT );
+
 ```
 
 需要针对x及y方向分别进行求梯度
@@ -820,6 +882,7 @@ OutputArray 	dst,
 double 	alpha = 1,
 double 	beta = 0 
 )	
+
 ```
 
 最终利用addWeighted 针对两个输入进行权重分配然后相加， 该函数执行 $dst = src1*alpha + src2*beta + gamma;$
@@ -833,6 +896,7 @@ double 	gamma,
 OutputArray 	dst,
 int 	dtype = -1 
 )	
+
 ```
 
 
@@ -851,6 +915,7 @@ double 	scale = 1,
 double 	delta = 0,
 int 	borderType = BORDER_DEFAULT 
 )
+
 ```
 
 检测边缘的效果更好， 主要跟sobel的区别在于内核数值不同
@@ -867,6 +932,7 @@ sobel算子具有明确的方向性(垂直和水平)，将图像旋转某一角�
 
 ```c++
 void Laplacian(InputArray src,OutputArray dst, int ddepth, int ksize=1, double scale=1, double delta=0, intborderType=BORDER_DEFAULT );
+
 ```
 
 第一个参数，InputArray类型的image，输入图像，即源图像，填Mat类的对象即可，且需为单通道8位图像。
@@ -887,6 +953,7 @@ InputArray 	lowerb,
 InputArray 	upperb,
 OutputArray 	dst 
 )	
+
 ```
 
 inrange类似threshhold， 如果一幅灰度图像的某个像素的灰度值在指定的高、低阈值范围之内，则在dst图像中令该像素值为255，否则令其为0，这样就生成了一幅二值化的输出图像
@@ -905,6 +972,7 @@ dst(I) = lowerb(I)0 ≤ src(I)0 < upperb(I)0 ∧ lowerb(I)1 ≤ src(I)1 < upperb
 
 ```c++
 Mat cv::getStructuringElement	(	int shape, Size 	ksize, Point 	anchor = Point(-1,-1))	
+
 ```
 
 - shape : 元素的形状[MorphShapes](https://docs.opencv.org/4.2.0/d4/d86/group__imgproc__filter.html#gac2db39b56866583a95a5680313c314ad)
@@ -921,6 +989,7 @@ int 	iterations = 1,
 int 	borderType = BORDER_CONSTANT,
 const Scalar & 	borderValue = morphologyDefaultBorderValue() 
 )	
+
 ```
 
 Parameters
@@ -978,6 +1047,7 @@ int 	mode,
 int 	method,
 Point 	offset = Point() 
 )	
+
 ```
 
 - image : source image 二值图
@@ -997,6 +1067,7 @@ Point 	offset = Point()
 double cv::contourArea	(	InputArray 	contour,
 bool 	oriented = false 
 )	
+
 ```
 
 计算出contour的面积
@@ -1018,6 +1089,7 @@ void cv::drawContours	(	InputOutputArray 	image,
         int 	maxLevel = INT_MAX,
         Point 	offset = Point() 
 )	
+
 ```
 
 thickness 如果填入FILLED的话， 轮廓内会被填满颜色
@@ -1034,6 +1106,7 @@ thickness 如果填入FILLED的话， 轮廓内会被填满颜色
 
 ```c++
 Rect cv::boundingRect	(	InputArray 	array	)	
+
 ```
 
 找到可以用最小矩形框出物体的（x, y, w, h)
@@ -1076,6 +1149,7 @@ int main( int argc, char** argv )
     imshow( "Components", dst );
     waitKey(0);
 }
+
 ```
 
 
@@ -1158,6 +1232,7 @@ cv::xfeatures2d::SIFT
 cv::xfeatures::BriefDescriptorExtractor
 cv::xfeatures2d::FREAK
 cv::xfeatures2d::StarDetector
+
 ```
 
 **SIFT 特征关键点检测**
@@ -1172,6 +1247,7 @@ cv::xfeatures2d::StarDetector
 #include <opencv2/xfeatures2d/nonfree.hpp>
 
 using namespace cv::xfeatures2d;
+
 ```
 
 使用的例子
@@ -1191,6 +1267,7 @@ Mat img_keypoints_1; Mat img_keypoints_2;
 //将找到的关键点绘制在img_keypoints_1上
 drawKeypoints( image1, keyPoints_1, img_keypoints_1, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
 drawKeypoints( image2, keyPoints_2, img_keypoints_2, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
+
 ```
 
 **Fast 特征关键点检测**
@@ -1209,6 +1286,7 @@ drawKeypoints(srcImage,detectKeyPoint,keyPointImage2,Scalar(0,0,255),DrawMatches
 imshow("src image",srcImage);
 imshow("keyPoint image1",keyPointImage1);
 imshow("keyPoint image2",keyPointImage2);
+
 ```
 
 
@@ -1250,6 +1328,7 @@ int 	scoreType = ORB::HARRIS_SCORE,
 int 	patchSize = 31,
 int 	fastThreshold = 20 
 )	
+
 ```
 
 
@@ -1267,6 +1346,7 @@ OutputArray 	mask = noArray(),
 const int 	maxIters = 2000,
 const double 	confidence = 0.995 
 )	
+
 ```
 
 使用函数 [findHomography](http://opencv.willowgarage.com/documentation/cpp/calib3d_camera_calibration_and_3d_reconstruction.html?#findHomography) 寻找匹配上的关键点的变换
@@ -1288,9 +1368,123 @@ const double 	confidence = 0.995
 - maxIters	RANSAC算法的最大迭代次数，默认值为2000。
 - confidence	可信度值，取值范围为0到1.
 
+
+
+#### 创建滑动条
+
+```c++
+createTrackbar(conststring & trackbarname , conststring & winname, int value, int count, TrackCallback onchange =0, void*userdata=0)
+
+```
+
+前面两个分别为bar名字和窗口名字， 第三个为bar初始值. count为可以达到的最大位置值
+
+trackcallback是指向回调函数的指针， 默认为0， 表示每次bar的位置改变都会执行函数
+
+userdate是用户传给回调函数的数据， 默认0
+
 ------
 
-### 3. 模板匹配
+### 3. 各类型
+
+#### Vec 对象类型 
+
+数值向量的模板类， 定义向量的类型和组件的数量
+
+官方预定义的类型
+
+```c++
+typedef Vec<unchar, 4> Vec4b;
+typedef Vec<int, 2> Vec2i;
+typedef Vec<float, 2> Vec2f;
+typedef Vec<double, 2> Vec2b;
+
+```
+
+#### Scalar对象类型
+
+由Vec派生的模板类， 用于传递和读取像素值
+
+以下是初始化的方式
+
+```c++
+Scalar s0(0); //赋值
+Scalar s1(0.0, 1.0, 2.0, 3.0); //赋多值
+Scalar s2(s1);//靠另一个值赋予值
+
+```
+
+#### Point 对象类型
+
+主要用来描述2D坐标平面上的点 （x, y)
+
+```c++
+typedef Point_<int> Point2i;
+typedef POint2i Point;
+typedef Point_<float> POint2f;
+typedef Point_<double> POint2d;
+
+```
+
+Ex.
+
+```c++
+Point pt;
+pt.x = 10;
+pt.y = 8;
+
+// 或者如下
+
+Point pt =  Point(10, 8);
+
+```
+
+
+
+#### Size对象类型
+
+通常用于指定图像或矩形大小， 这个类添加了两个成员 width 和 height， 以及area()函数
+
+```c++
+Size s(100, 100);
+Mat img = Mat::zeros(s, CV_8UC1); // 100 x 100 单通道matrix
+s.width = 200;
+int area = s.area(); //returns 100x200
+
+```
+
+#### Rect 对象
+
+就是矩形对象
+
+也可以用来定义ROI（region of interest, 简称ROI)
+
+`Rect_(_Tp _x, _Tp _y, _Tp _width, _Tp _height)`
+
+定义一个左上角点坐标为`(_x, _y)`， `_width*_height`矩形的宽和高
+
+```c++
+Mat img = imread("lena,jpg");
+Rect rect_roi(0, 0, 100, 100);
+Mat img_roi = img(r); //原图 从左上x:0 y:0的位置 取height, width = 100进行剪裁
+
+```
+
+#### C 接口
+
+CvSize
+
+CvRect
+
+CvPoint
+
+CvScalar
+
+
+
+------
+
+### 4. 模板匹配
 
 给定一个原图， 在给定一个与想要从原图中搜索出的模板图
 
@@ -1300,6 +1494,7 @@ void cvMatchTemplate	(	const CvArr * 	image,
   CvArr * 	result,
   int 	method 
   )	
+
 ```
 
 Example
@@ -1351,6 +1546,7 @@ cvRectangle(result, minPoint, cv::Point(minPoint.x + black->width, minPoint.y + 
 cvShowImage("【匹配后的计算过程图像】", result);
 cv::waitKey(0);
 
+
 ```
 
 
@@ -1359,7 +1555,7 @@ cv::waitKey(0);
 
 
 
-### 4. 对视频or摄像头读取
+### 5. 对视频or摄像头读取
 
 
 
@@ -1367,6 +1563,7 @@ cv::waitKey(0);
 
 ```
 cv::VideoCapture() 类 
+
 ```
 
 
@@ -1409,6 +1606,7 @@ for (;;)
 
 //记得释放掉资源
 cap.release();
+
 ```
 
 
@@ -1419,6 +1617,7 @@ cap.release();
 
 ```c++
 cv::VideoWriter::VideoWriter
+
 ```
 
 VideoWriter主要构造函数如下
@@ -1436,6 +1635,7 @@ cv::VideoWriter::VideoWriter	(
 cv::VideoWriter::VideoWriter	(	const String & 	filename, int 	apiPreference,
 int 	fourcc, double 	fps, Size 	frameSize, bool 	isColor = true 
 )	
+
 ```
 
 - fps：以多大的帧率保存*
@@ -1469,6 +1669,7 @@ void main()
 		}
 	}
 }
+
 ```
 
 
@@ -1491,6 +1692,7 @@ cout << "time consume: " << (last / getTickFrequency() * 1000) << endl;
 
 //总次数/一秒内重复的次数*1000 = 时间(ms) 
 //总次数/一秒内重复的次数*1000000 = 时间(s)
+
 ```
 
 
@@ -1499,6 +1701,7 @@ opencv3.2 自带模块
 
 ```
 cv::TickMeter
+
 ```
 
 
@@ -1513,6 +1716,7 @@ timer.start();
 // do something ...
 timer.stop();
 std::cout << timer.getTimeSec();//输出是s
+
 ```
 
 getTimeMicro() //返回微秒 us
@@ -1553,100 +1757,12 @@ while(true)
                 cv::Point(30, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0,0,255));
     cv::imshow("CSI Camera",frame); 
 }
+
 ```
 
 
 
 ------
-
-### 5. 各类型
-
-#### Vec 对象类型 
-
-数值向量的模板类， 定义向量的类型和组件的数量
-
-官方预定义的类型
-
-```c++
-typedef Vec<unchar, 4> Vec4b;
-typedef Vec<int, 2> Vec2i;
-typedef Vec<float, 2> Vec2f;
-typedef Vec<double, 2> Vec2b;
-```
-
-#### Scalar对象类型
-
-由Vec派生的模板类， 用于传递和读取像素值
-
-以下是初始化的方式
-
-```c++
-Scalar s0(0); //赋值
-Scalar s1(0.0, 1.0, 2.0, 3.0); //赋多值
-Scalar s2(s1);//靠另一个值赋予值
-```
-
-#### Point 对象类型
-
-主要用来描述2D坐标平面上的点 （x, y)
-
-```c++
-typedef Point_<int> Point2i;
-typedef POint2i Point;
-typedef Point_<float> POint2f;
-typedef Point_<double> POint2d;
-```
-
-Ex.
-
-```c++
-Point pt;
-pt.x = 10;
-pt.y = 8;
-
-// 或者如下
-
-Point pt =  Point(10, 8);
-```
-
-
-
-#### Size对象类型
-
-通常用于指定图像或矩形大小， 这个类添加了两个成员 width 和 height， 以及area()函数
-
-```c++
-Size s(100, 100);
-Mat img = Mat::zeros(s, CV_8UC1); // 100 x 100 单通道matrix
-s.width = 200;
-int area = s.area(); //returns 100x200
-```
-
-#### Rect 对象
-
-就是矩形对象
-
-也可以用来定义ROI（region of interest, 简称ROI)
-
-`Rect_(_Tp _x, _Tp _y, _Tp _width, _Tp _height)`
-
-定义一个左上角点坐标为`(_x, _y)`， `_width*_height`矩形的宽和高
-
-```c++
-Mat img = imread("lena,jpg");
-Rect rect_roi(0, 0, 100, 100);
-Mat img_roi = img(r); //原图 从左上x:0 y:0的位置 取height, width = 100进行剪裁
-```
-
-#### C 接口
-
-CvSize
-
-CvRect
-
-CvPoint
-
-CvScalar
 
 
 
@@ -1660,6 +1776,7 @@ CvScalar
 
 ```c++
 void namedWindow(const string& winname, int flags=WINDOW_AUTOSIZE )
+
 ```
 
 **name** – window的名字， 也可用来辨别是否为同一个视窗
@@ -1676,6 +1793,7 @@ void namedWindow(const string& winname, int flags=WINDOW_AUTOSIZE )
 
 ```c++
 void convertTo( OutputArray m, int rtype, double alpha=1, double beta=0 ) const
+
 ```
 
 
@@ -1684,6 +1802,7 @@ void convertTo( OutputArray m, int rtype, double alpha=1, double beta=0 ) const
 
 ```cpp
 m(x,y) = saturate_cast<rType>(alpha * (*this) (x,y) + beta);
+
 ```
 
 > m       – 目标矩阵。如果m在运算前没有合适的尺寸或类型，将被重新分配。
@@ -1702,6 +1821,7 @@ m(x,y) = saturate_cast<rType>(alpha * (*this) (x,y) + beta);
 
 ```c++
 void cv::putText (intputoutputarray img, const String & text, Point org, int fontFace,o double fontscale, Scalar color, int thickness = 1, int lineType = LINE_8,  bool bottomLeftOrigin = false)
+
 ```
 
 - img : Image.
@@ -1718,6 +1838,7 @@ void cv::putText (intputoutputarray img, const String & text, Point org, int fon
 
 ```c++
 Size cv::getTextSize(const String & text, int fontFace, double fontScale, int thickness, int * baseLine)
+
 ```
 
 输入传入的text以及给定的字体大小等 计算出需要的长度和宽度
@@ -1756,6 +1877,7 @@ line(img, textOrg + Point(0, thickness),
 // then put the text itself
 putText(img, text, textOrg, fontFace, fontScale,
         Scalar::all(255), thickness, 8);
+
 ```
 
 
@@ -1796,6 +1918,7 @@ Hello 文件夹
 ├── cmake-build-debug
 ├── main.cpp
 └── src
+
 ```
 
 
@@ -1820,6 +1943,7 @@ set(src main.cpp)
 
 add_executable(${PROJECT_NAME} ${src})
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
+
 ```
 
 
@@ -1899,6 +2023,7 @@ int main()
     return 0;
 }
 
+
 ```
 
 #### CSI camera Video Write的方式
@@ -1906,6 +2031,7 @@ int main()
 ```C++
 cv::VideoWriter writer;
     writer.open("appsrc ! autovideoconvert ! omxh265enc ! matroskamux ! filesink location=test.mkv ", 0, (double)25, cv::Size(1024, 1024), true);
+
 ```
 
 
@@ -1935,6 +2061,7 @@ return ('nvarguscamerasrc ! '
 'nvvidconv flip-method=2 ! '
 'video/x-raw, format=I420 ! '
 'appsink max-buffers=1 drop=True ')
+
 ```
 
 c++ version 
@@ -1946,6 +2073,7 @@ std::string gstreamer_pipeline (int capture_width, int capture_height, int displ
            "/1 ! nvvidconv flip-method=" + std::to_string(flip_method) + " ! video/x-raw, width=(int)" + std::to_string(display_width) + ", height=(int)" +
            std::to_string(display_height) + ", format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink max-buffers=1 drop=True ";
 }
+
 ```
 
 
@@ -2007,6 +2135,7 @@ name_param 可以@开头， 将参数定义为默认输入
 
 
 CommnadLineParser parser(argc, argv, keys);
+
 ```
 
 
@@ -2021,11 +2150,12 @@ OpenCV Error: Assertion failed (scn == 3 || scn == 4) in cv::cvtColor
 
 #### 图像元素类型
 
-```
-Type:类型 CV_[位数][带符号与否][类型前缀][通道数]
+Type:类型 CV_[位数][带符号与否][类型前缀]C[通道数]
+
 例:CV_8UC3表示使用8位的unsighed char类型.每个像素由三个元素组成的三通道.
 CV_64FC1 F表示float channel = 1
 
+```
 类型汇总:
 CV_8U  (8 bit 无符号整形0~255) CV_8UC1 (1通道)  CV_8UC2 (2通道)  CV_8UC3 (3通道)  CV_8UC4(4通道) 
 CV_8S   (8 bit有符号整形-128~127)
@@ -2045,6 +2175,7 @@ CV_32FC1   CV_32FC2  CV_32FC3   CV_32FC4
 
 CV_64F   (64 bit 浮点)
 CV_64FC1   CV_64FC2  CV_64FC3  CV_64FC4  
+
 ```
 
 
@@ -2053,4 +2184,6 @@ CV_64FC1   CV_64FC2  CV_64FC3  CV_64FC4
 
 ### 参考资料
 
-OpenCV 文档目录 https://docs.opencv.org/
+1. OpenCV 文档目录 https://docs.opencv.org/
+
+2. OpenCV3编程入门 毛星云

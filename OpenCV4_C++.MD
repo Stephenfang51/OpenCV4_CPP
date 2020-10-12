@@ -6,25 +6,34 @@
 
 对于图像处理应该要有一个观念， 通常为了解决问题会使用到库中的许多函数， 非万不得已不应该传入整张图， 会降低整体运行的效率， 因此opencv中Mat 类型就是针对这样的理念进行设计， 请看到图像处理的篇章
 
-<h5 align='right' > update 2020.9.17</h5>
+<h5 align='right' > update 2020.10.12</h5>
 
 ### 目录
 
 > 安装
 >
 > 1. 基本
+>
 > 2. 图像处理
+>
 > 3. 各类型(Vec, Scalar, Point, Size, Rect)
+>
 > 4. 模板匹配
+>
 > 5. 对视频or摄像头读取
+>
 > 6. API
 >
-> - 目录待编辑***
->
-> 6. CMakeLists.txt 编写
-> 7. Gstream
-> 8. 其他
 >    - 目录待编辑***
+>
+>    6. CMakeLists.txt 编写
+>
+> 7. Gstream
+>
+> 8. 其他
+>
+>    - 目录待编辑***
+>
 > 9. 参考资料
 >
 > 
@@ -243,7 +252,41 @@ m5:
 
 #### IplImage 
 
-OpenCV 早期版本C接口图像存储的结构体， 推出之前还需要release掉， 否则造成内存泄露， 
+OpenCV 早期版本C接口图像存储的结构体， 推出之前还需要release掉， 否则造成内存泄露
+
+
+
+IplImage的结构体
+
+需要注意 imageData 是指向图像数据第一行的指针
+
+```c++
+typedef struct _IplImage {
+    int nSize;
+    int ID;
+    int nChannels;
+    int alphaChannels;
+    int depth;
+    char colorModel[4];
+    char channelSeq[4];
+    int dataOrder;
+    int origin;
+    int align;
+    int width;
+    int height;
+    struct _IplROI* roi;
+    struct _IplImage* maskROI;
+    void* imageId;
+    struct _IplTileInfo* titleInfo;
+    int imageSize;
+    char* imageData;
+    int widthStep;
+    int BorderMode[4];
+    int BorderConst[4];
+    char* imageDataOrigin;
+ 
+    }IplImage;
+```
 
 
 
@@ -301,8 +344,19 @@ Mat src(src_img);
 Mat color = imread("test.jpg"); //读取为彩色图像
 
 Mat gray = imread("test.jpg", CV_LOAD_IMAGE_GRAYSCALE); //指定读取为灰度图
-
 ```
+
+
+
+#### 存取图像 imwrite
+
+```c++
+bool cv::imwrite	(	const String & 	filename, InputArray 	img, const std::vector< int > & 	params = std::vector< int >())
+```
+
+- filename : Name of the file. 务必加上后缀比如 "test.jpg"
+- img : Image to be saved. 通常会是Mat
+- params : Format-specific parameters encoded as pairs (paramId_1, paramValue_1, paramId_2, paramValue_2, ... .) see [cv::ImwriteFlags](
 
 
 
@@ -311,21 +365,86 @@ Mat gray = imread("test.jpg", CV_LOAD_IMAGE_GRAYSCALE); //指定读取为灰度�
 ```c++
 int MyRaw = color.cols-1;
 int MyCol = color.rows-1;
-
 ```
 
 
 
 #### 访问图像中的某个像素
 
+访问图像的某个像素有三种方法， 用指针访问是最快速的
+
+**at()**
+
+用成员函数at 可以访问成员像素， 速度最慢, 语法`image.at<Vec3b>(i, j)[c]`
+
 ```c++
 //cv::Mat::at<typename>(row, col)
 Vec3b pixel = color.at<Vec3b>(myRow, myCol);
 cout << "Pixel value (B, G, R): (" << (int)pixel[0] << ", " << (int)pixel[1] << ", " << (int)pixel[2]<<")" << endl;
-
 ```
 
 8位彩色图像的类型是Vec3b （Vec = 向量， 3 = 组件数， b = 一个字节）
+
+**指针访问 Mat**
+
+假设要写一个 将256色缩减为64色的函数
+
+```c++
+void colorReduce(Mat & src_img, Mat & dst_img, int div){
+  dst_img = src_img.clone();
+  int rows = src_img.rows();
+  int cols = src_img.cols * src_img.channels();
+  
+  for(int i =0; i < rows; i++){
+    uchar * data = src_img.ptr<uchar>(i); //获取第i行首个地址
+    for(int j = 0; j < cols; j++){
+      //开始处理每个像素
+      data[j] = data[j]/div*div + div/2;
+    }//行处理结束
+  }
+}
+
+```
+
+**指针访问 IplImage**
+
+用最大化BGR中的G跟R
+
+主要记住 `img->imageData + i * img->widthStep` 可以获取图像的第i行， 然后要取第j列的像素值就为
+
+`img->imageData + i * img->widthStep + j*img->nChannels + 通道数` ， 通道数依序为0, 1, 2
+
+```c++
+void  maxmize_GR(IplImage* img){
+  //取得指针
+  for(int i=0;i<img->height;i++){
+    uchar* ptr=(uchar*)(img->imageData+i*img->widthStep);
+  }
+  for(int j=0;j<img->width;j++){
+    ptr[3*j+1]=255; //改变G
+    ptr[3*j+2]=255; //改变R
+  }
+}
+
+//或者
+
+void maxmize_GR(IplImage * img){
+	for(int i = 0, i < img->height; i ++){
+		for (int j =0, j < img->width; j ++){
+			*(img->imageData + i*img->widthStep+(j*img->nChannels+1)) = 255; 
+			*(img->imageData + i*img->widthStep+(j*img->nChannels+2)) = 255; 
+		}
+	}
+}
+```
+
+
+
+指针访问的关键都在与， 先获取第i行的首指针， 然后在透过第二个循环 j列的部分， 一列一列的移动
+
+
+
+
 
 
 
@@ -335,7 +454,6 @@ cout << "Pixel value (B, G, R): (" << (int)pixel[0] << ", " << (int)pixel[1] << 
 imshow("Test_bgr", color);
 imshow("Test_gray", gray);
 waitkey(0); 
-
 ```
 
 waitkey表示等待用户按下某个键就关闭窗口， 0表示任何键
@@ -354,14 +472,12 @@ double 	fx = 0,
 double 	fy = 0,
 int interpolation = INTER_LINEAR 
 )
-
 ```
 
 Ex.
 
 ```c++
 cv::resize(src, dst, Size(xxx, xxx), 0, 0, INTER_LINEAR)
-
 ```
 
 
@@ -373,7 +489,6 @@ Randu()函数, 可给定随机数的上限以及下限值
 ```
 Mat x = Mat(10, 3, CV_8UC3);
 randu(x, Scalar::all(0), Scalar::all(255));
-
 ```
 
 
@@ -390,7 +505,6 @@ ex. 在原图上 利用`cv::Rect`选定出roi区域， 可以在此roi上做变�
 Mat orange = imread("./images/orange.png");
 
 Mat roi = orange(Rect(0, 0, apple.cols, apple.rows));
-
 ```
 
 
@@ -401,7 +515,6 @@ C的方法主要是将原图变为roi
 
 ```c
 void cvSetImageROI(IplImage* image, CvRect rect)
-
 ```
 
 用法
@@ -420,7 +533,6 @@ src_img->roi->height;
 
 //释放roi， 变回原来的图像
 cvResetImageROI(src_img);
-
 ```
 
 
@@ -435,12 +547,10 @@ cvResetImageROI(src_img);
 
 ```c++
 void copyTo( OutputArray m ) const;
-
 ```
 
 ```c++
 void copyTo(OutputArray m, InputArray mask) const;
-
 ```
 
 也就是参数可以是一张输出图像，或者一张输出图像和一个掩码图
@@ -472,7 +582,6 @@ mat1 = mat3.clone();   // mat1被重新分配内存，通过mat1不能改变mat2
 cout << mat1 << endl;   // [0,0,0,0,0]
 cout << mat2 << endl;   // [1,1,1,1,1]
 
-
 ```
 
 
@@ -495,7 +604,6 @@ void sqrt(InputArray src, OutputArray dst);//计算每个矩阵元素的平方�
 void pow(InputArray src, double power, OutputArray dst);//src的power次幂
 void exp(InputArray src, OutputArray dst);//dst = e**src（**表示指数的意思）
 void log(InputArray src, OutputArray dst);//dst = log(abs(src))
-
 ```
 
 
@@ -505,7 +613,6 @@ void bitwise_and(InputArray src1, InputArray src2,OutputArray dst, InputArray ma
 void bitwise_or(InputArray src1, InputArray src2,OutputArray dst, InputArray mask=noArray());//dst = src1 | src2
 void bitwise_xor(InputArray src1, InputArray src2,OutputArray dst, InputArray mask=noArray());//dst = src1 ^ src2
 void bitwise_not(InputArray src, OutputArray dst,InputArray mask=noArray());//dst = ~src
-
 
 ```
 
@@ -522,15 +629,23 @@ https://blog.csdn.net/guduruyu/article/details/70837779
 
 处理多通道图像时，有时需要对各个通道进行分离，分别处理；有时还需要对分离处理后的各个通道进行合并，重新合并成一个多通道的图像
 
+注意存储个别通道都是利用vector存储， 分离需要把分离的通道存储到vector， 合并也需要从 vector中将单个合并
+
+
+
+
+
+Example
+
 ```C++
 int main()
 {
 	cv::Mat src = imread("lenna.jpg", cv::IMREAD_COLOR);
 	cv::imshow("src", src);
  
-	// Split the image into different channels
+	// 先创建一个容器包含Mat
 	std::vector<cv::Mat> rgbChannels(3);
-	split(src, rgbChannels);
+	split(src, rgbChannels); //进行分离
  
 	// Show individual channels
 	cv::Mat blank_ch, fin_img;
@@ -573,7 +688,7 @@ int main()
 
 
 
-#### 图像色彩空间转换
+#### 图像色彩空间转换cvtColor
 
 ```C++
 void cv::cvtColor	(	InputArray 	src, OutputArray 	dst, int 	code, int dstCn = 0 )	
@@ -585,20 +700,194 @@ void cv::cvtColor	(	InputArray 	src, OutputArray 	dst, int 	code, int dstCn = 0 
 
 
 
-#### 存取图像
+注意两个版本的转换标识符的名称有更改， 从CV_ 改成 COLOR_
 
 ```c++
-bool cv::imwrite	(	const String & 	filename, InputArray 	img, const std::vector< int > & 	params = std::vector< int >())
-
+cvtColor(src, dst, CV_GRAY2BGR); //opencv2 
+cvtColor(src, dst, COLOR_GRAY2BGR); //opencv3
 ```
 
-- filename : Name of the file. 务必加上后缀比如 "test.jpg"
-- img : Image to be saved. 通常会是Mat
-- params : Format-specific parameters encoded as pairs (paramId_1, paramValue_1, paramId_2, paramValue_2, ... .) see [cv::ImwriteFlags](https://docs.opencv.org/3.4/d4/da8/group__imgcodecs.html#ga292d81be8d76901bff7988d18d2b42ac)
+
+
+#### 图像亮度与对比调整方法
+
+首先看到式子
+
+$g(x) = a * f(x) + b$     ==   $g(i, j) = a * f(i, j) + b$
+
+很好理解 f为原图， g为输出后的图， a为增益， 控制对比， b为偏值， 控制亮度
+
+如果要改变一幅图像的亮度或者对比效果， 遍历一幅图， 然后对每个像素执行上面的操作就行
+
+
+
+#### 图像亮度计算
+
+RGB三原色转灰度的公式
+
+1. `Y（亮度） = 0.299 *R + 0.587*G + 0.114*B`
+2. (MAX + MIN ) / 2
+3.  (R+G+B) / 3
+
+
+
+
+
+#### 色域缩减方法 lookUpTable
+
+LUT可以将输入的图像经过自定义好的查找表进行转换， 主要用来 **缩减色域范围**
+
+比如0-9的像素都归为0，10-19的像素都归为10，依此类推。
+
+```c++
+void cv::LUT	(	InputArray 	src,
+InputArray 	lut,
+OutputArray 	dst 
+)	
+```
+
+example ：为三通道图像进行色域缩减， 将像素0~255 分为三个阶段， 
+
+pixel<100 = (0, 50, 50); 100<pixel<200 = (100, 10, 200) ; pixel>200 = (255, 200, 100);
+
+```c++
+#include<highgui\highgui.hpp>  
+using namespace cv;  
+int main()  
+{  
+  	
+  	//建立查找表
+    uchar lutData[256 * 3];  
+    int j = 0;  
+    for (int i = 0; i<256; i++)  
+   {  
+      
+       if (i <= 100)  
+        {  
+            lutData[i * 3] = 0;  
+            lutData[i * 3 + 1] = 50;  
+            lutData[i * 3 + 2] = 50;  
+        }  
+        if (i > 100 && i <= 200)  
+        {  
+            lutData[i * 3] = 100;  
+            lutData[i * 3 + 1] = 10;  
+            lutData[i * 3 + 2] = 200;  
+        }  
+        if (i > 200)  
+        {  
+            lutData[i * 3] = 255;  
+            lutData[i * 3 + 1] = 200;  
+            lutData[i * 3 + 2] = 100;  
+        }    
+    }  
+    Mat lut(1, 256, CV_8UC3, lutData);  
+    Mat a = imread("C:\\Users\\11206\\Desktop\\OpencvTestImage\\2.jpg", CV_LOAD_IMAGE_ANYCOLOR);  
+    Mat b;  
+    namedWindow("anjis", CV_WINDOW_AUTOSIZE);  
+    namedWindow("anjis1", CV_WINDOW_AUTOSIZE);  
+    imshow("anjis", a);  
+    LUT(a, lut, b);   //调用LUT函数进行色域缩减
+    imshow("anjis1", b);  
+    waitKey();  
+} 
+```
+
+
+
+
+
+- https://docs.opencv.org/3.4/d4/da8/group__imgcodecs.html#ga292d81be8d76901bff7988d18d2b42ac)
+
+
+
+#### 图像的频率为何？
+
+要继续往下深度了解图像信号方面的处理， 必须理解什么是图像的频率概念
+
+频率可分为在时间上的以及空间上的
+
+图像就属于在空间频率上，可以看做是二维平面上的信号，  反应了图像的灰度值在空间中变化的情况， 例如，一面墙壁的图像，由于灰度值分布平坦，其低频成分就较强，而高频成分较弱；而对于国际象棋棋盘或者沟壑纵横的卫星图片这类具有快速空间变化的图像来说，其高频成分会相对较强，低频则较弱（注意，是相对而言）
+
+
+
+#### 傅里叶变换DFT
+
+https://blog.csdn.net/Neil_Pan/article/details/51939114?utm_source=blogxgwz5
+
+
+
+
 
 #### 图像去噪 - 滤波器
 
-**高斯滤波**
+图像去噪主要是 尽可能的保留原图像的特征， 又能对图像的噪声进行抑制， 处理结果将直接影响到后续的图像处理和分析的可靠性， 而消除噪声的动作叫做图像平滑化、滤波操作， 图像大部分有用信息聚集在低频及中频段， 有用的信息经常被噪声淹没， 因此一个能削弱高频成份幅度的滤波器就能削弱噪声的影响
+
+**就是图像中像素灰度值变化快的就是高频部分，变化慢的就是低频部分**
+
+**线性滤波**：
+
+1. 方值滤波Boxblur
+2. 均值滤波(邻域平均)
+3. 高斯滤波GaussianBlur
+
+**非线性滤波**：
+
+1. 中值滤波（medianBlur)
+2. 双边滤波（bilateralFilter)
+
+
+
+滤波可以分为低通和高通滤波
+
+1. 低通就是允许低频率通过， 那低频率表示为变化慢的部分， 那么就是模糊
+2. 高通就是允许高频率通过， 高频率表示**变化快**的部分， 那么自然就是锐化
+
+
+
+**方框滤波**
+
+```c++
+void cv::boxFilter	(	InputArray 	src,
+OutputArray 	dst,
+int 	ddepth,
+Size 	ksize,
+Point 	anchor = Point(-1,-1),
+bool 	normalize = true,
+int 	borderType = BORDER_DEFAULT 
+)	
+```
+
+Ddepth 表示图像的深度， -1表示原图深度
+
+ksize 表示滤波器大小， 一般是奇数， 比如Size(3, 3), Size(5, 5)
+
+anchor 表示锚点， 表示需要被平滑的点， Point 一般是(-1, -1), 表示核中心
+
+Normalize 表示内核是否北区域内归一化， 默认true
+
+
+
+
+
+**高斯滤波  GaussianBlur**
+
+高斯滤波表示用**高斯函数作为滤波函数的滤波操作**， 至于是不是模糊， 要看低通还是高通
+
+1. 高斯低通 ： 模糊
+2. 高斯高通 ： 锐化
+
+
+
+二维高斯公式
+
+$g(x, y) = A exp(-(\frac{(x-x_0)^2}{2\sigma^2_x})+\frac{(y-y_0)^2}{2\sigma^2_y})$
+
+
+
+对两个方向， x及y
+
+sigma 决定了高斯函数的密度
 
 可以模糊化图片， 也有抗噪声的效果
 
@@ -610,16 +899,45 @@ double 	sigmaX,
 double 	sigmaY = 0,
 int 	borderType = BORDER_DEFAULT 
 )
-
 ```
 
-| src        | input image; the image can have any number of channels, which are processed independently, but the depth should be CV_8U, CV_16U, CV_16S, CV_32F or CV_64F. |
-| ---------- | ------------------------------------------------------------ |
-| dst        | output image of the same size and type as src.               |
-| ksize      | Gaussian kernel size. ksize.width and ksize.height can differ but they both must be positive and odd. Or, they can be zero's and then they are computed from sigma. |
-| sigmaX     | Gaussian kernel standard deviation in X direction.           |
-| sigmaY     | Gaussian kernel standard deviation in Y direction; if sigmaY is zero, it is set to be equal to sigmaX, if both sigmas are zeros, they are computed from ksize.width and ksize.height, respectively (see [getGaussianKernel](https://docs.opencv.org/3.4/d4/d86/group__imgproc__filter.html#gac05a120c1ae92a6060dd0db190a61afa) for details); to fully control the result regardless of possible future modifications of all this semantics, it is recommended to specify all of ksize, sigmaX, and sigmaY. |
-| borderType | pixel extrapolation method, see [BorderTypes](https://docs.opencv.org/3.4/d2/de8/group__core__array.html#ga209f2f4869e304c82d07739337eae7c5). [BORDER_WRAP](https://docs.opencv.org/3.4/d2/de8/group__core__array.html#gga209f2f4869e304c82d07739337eae7c5a697c1b011884a7c2bdc0e5caf7955661) is not supported. |
+
+
+**中值滤波Median filter**
+
+能够有小去除图像中较大的像素值（噪声）
+
+假设一个3x3 邻域如下
+
+```
+1， 3， 8
+4， 6， 2
+3， 6， 9
+```
+
+排序之后 1, 2, 3, 3, 4, 6, 6, 8, 9, 那么中值就是4， 于是用4取代中间的像素值6
+
+
+
+```c++
+void cv::medianBlur	(	InputArray 	src,
+OutputArray 	dst,
+Size 	ksize,
+double 	sigmaX,
+double 	sigmaY = 0,
+int 	borderType = BORDER_DEFAULT 
+)
+```
+
+
+
+
+
+**中值滤波与均值滤波的比较**
+
+对于噪声， 中值滤波更能有效去除噪点且不失图像细节
+
+但是更耗时， 耗时是均值滤波的五倍
 
 
 
@@ -634,7 +952,6 @@ C++
 ```c++
 double cv::threshold	(	InputArray 	src, OutputArray 	dst, double 	thresh, double 	maxval,
 int type )	
-
 ```
 
 - Thresh : threshold value.
@@ -647,7 +964,6 @@ C
 
 ```c
 C: double cvThreshold(const CvArr* src, CvArr* dst, double threshold, double max_value, int threshold_type)
-
 ```
 
 threshold 就是自己设置的阈值
@@ -692,7 +1008,6 @@ void cv::HoughLines(
 // Unnormalized accumulator threshold 
 // rho refinement (for MHT) 
 // theta refinement (for MHT)
-
 ```
 
 ```c++
@@ -704,7 +1019,6 @@ int 	threshold,
 double 	minLineLength = 0,
 double 	maxLineGap = 0 
 )
-
 ```
 
 
@@ -735,7 +1049,6 @@ double 	param2 = 100,
 int 	minRadius = 0,
 int 	maxRadius = 0 
 )	
-
 ```
 
 
@@ -756,7 +1069,6 @@ void HoughCircles( InputArray image,
                   double param2=100,
 									int minRadius=0, 
                   int maxRadius=0 );
-
 ```
 
 第一个参数image是输入图像矩阵，要求是灰度图像；
@@ -836,7 +1148,6 @@ canny算子是一种更系统性的边缘检测算子，其使用sobel算子作�
 
 ```c++
 void Canny(InputArray image,OutputArray edges, double threshold1, double threshold2, int apertureSize=3,bool L2gradient=false )
-
 ```
 
 第一个参数，InputArray类型的image，输入图像，即源图像，填Mat类的对象即可，且需为单通道8位图像。
@@ -865,7 +1176,6 @@ InputArray src,//输入图
  double scale=1,
  double delta=0,
  int borderType=BORDER_DEFAULT );
-
 ```
 
 需要针对x及y方向分别进行求梯度
@@ -882,7 +1192,6 @@ OutputArray 	dst,
 double 	alpha = 1,
 double 	beta = 0 
 )	
-
 ```
 
 最终利用addWeighted 针对两个输入进行权重分配然后相加， 该函数执行 $dst = src1*alpha + src2*beta + gamma;$
@@ -896,7 +1205,6 @@ double 	gamma,
 OutputArray 	dst,
 int 	dtype = -1 
 )	
-
 ```
 
 
@@ -915,7 +1223,6 @@ double 	scale = 1,
 double 	delta = 0,
 int 	borderType = BORDER_DEFAULT 
 )
-
 ```
 
 检测边缘的效果更好， 主要跟sobel的区别在于内核数值不同
@@ -932,7 +1239,6 @@ sobel算子具有明确的方向性(垂直和水平)，将图像旋转某一角�
 
 ```c++
 void Laplacian(InputArray src,OutputArray dst, int ddepth, int ksize=1, double scale=1, double delta=0, intborderType=BORDER_DEFAULT );
-
 ```
 
 第一个参数，InputArray类型的image，输入图像，即源图像，填Mat类的对象即可，且需为单通道8位图像。
@@ -953,7 +1259,6 @@ InputArray 	lowerb,
 InputArray 	upperb,
 OutputArray 	dst 
 )	
-
 ```
 
 inrange类似threshhold， 如果一幅灰度图像的某个像素的灰度值在指定的高、低阈值范围之内，则在dst图像中令该像素值为255，否则令其为0，这样就生成了一幅二值化的输出图像
@@ -968,14 +1273,45 @@ dst(I) = lowerb(I)0 ≤ src(I)0 < upperb(I)0 ∧ lowerb(I)1 ≤ src(I)1 < upperb
 
 #### 形态学
 
+最基本的形态操作有二， **膨胀和腐蚀**， 能够实现
+
+1. 消除噪声
+2. 分割出独立的图像元素， 在图像中连接相邻的元素
+3. 寻找图像中明显的极大值 或 极小值区域
+4. 求出图像的梯度
+
+必须注意， 膨胀跟腐蚀主要是针对图像中白色的区域， 膨胀就是将图像中高亮的部分扩张， 腐蚀则相反
+
+类似于滤波， 形态操作也是利用模板对原图像进行卷积运算
+
+
+
+参考
+
+Dilation and Erosion https://www.youtube.com/watch?v=uUweXBmm978
+
+Structuring Elements https://www.youtube.com/watch?v=9lqH5XLI-V4
+
+
+
+
+
+
+
+
+
+
+
 结构元素可以是矩形/椭圆/十字形，可以用`getStructuringElement()`来生成不同形状的结构元素, 就是产生一个卷积核运用在膨胀或者腐蚀上
 
 ```c++
-Mat cv::getStructuringElement	(	int shape, Size 	ksize, Point 	anchor = Point(-1,-1))	
-
+Mat cv::getStructuringElement	(	int shape, Size ksize, Point 	anchor = Point(-1,-1))	
 ```
 
 - shape : 元素的形状[MorphShapes](https://docs.opencv.org/4.2.0/d4/d86/group__imgproc__filter.html#gac2db39b56866583a95a5680313c314ad)
+  - MORPH_RECT
+  - MORPH_CROSS
+  - MORPH_ELLIPSE
 - ksize ：结构元素的尺寸
 - anchor ： 在元素中的anchor的位置预设是(-1, -1)表示在正中间， 只有crossshapeed element取决于anchor的位置， In other cases the anchor just regulates how much the result of the morphological operation is shifted
 
@@ -989,7 +1325,6 @@ int 	iterations = 1,
 int 	borderType = BORDER_CONSTANT,
 const Scalar & 	borderValue = morphologyDefaultBorderValue() 
 )	
-
 ```
 
 Parameters
@@ -998,7 +1333,7 @@ Parameters
 - Dst : 与source一样size的目标图像
 - op ： 形态学操作， 见下面表格
 - kernel ： 就是利用getStructuringElement 制作的kernel
-- anchor ： 
+- anchor ： 锚点， 就是卷积核的中心位置， 一般默认Point(-1, -1)
 - iteration：erosion or dilation的次数
 - borderType ： 像素外推的方法[BorderTypes](https://docs.opencv.org/4.2.0/d2/de8/group__core__array.html#ga209f2f4869e304c82d07739337eae7c5)
 - borderValue : 边界值， 如果边界是个常数的话
@@ -1015,17 +1350,134 @@ Erosion 动画解释 https://www.youtube.com/watch?v=b5lgnNEzGeU
 
 dailation 动画图解 https://www.youtube.com/watch?v=3IJ8RFtlDLY
 
-| MORPH_ERODE Python: cv.MORPH_ERODE       | see [erode](https://docs.opencv.org/3.4.8/d4/d86/group__imgproc__filter.html#gaeb1e0c1033e3f6b891a25d0511362aeb) |
-| ---------------------------------------- | ------------------------------------------------------------ |
-| MORPH_DILATE Python: cv.MORPH_DILATE     | see [dilate](https://docs.opencv.org/3.4.8/d4/d86/group__imgproc__filter.html#ga4ff0f3318642c4f469d0e11f242f3b6c) |
-| MORPH_OPEN Python: cv.MORPH_OPEN         | an opening operation 𝚍𝚜𝚝=open(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=dilate(erode(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)) |
-| MORPH_CLOSE Python: cv.MORPH_CLOSE       | a closing operation𝚍𝚜𝚝=close(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=erode(dilate(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)) |
-| MORPH_GRADIENT Python: cv.MORPH_GRADIENT | a morphological gradient𝚍𝚜𝚝=morph_grad(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=dilate(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)−erode(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝) |
-| MORPH_TOPHAT Python: cv.MORPH_TOPHAT     | "top hat"𝚍𝚜𝚝=tophat(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=𝚜𝚛𝚌−open(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)       |
-| MORPH_BLACKHAT Python: cv.MORPH_BLACKHAT | "black hat"𝚍𝚜𝚝=blackhat(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)=close(𝚜𝚛𝚌,𝚎𝚕𝚎𝚖𝚎𝚗𝚝)−𝚜𝚛𝚌  |
-| MORPH_HITMISS Python: cv.MORPH_HITMISS   | "hit or miss" .- Only supported for CV_8UC1 binary images. A tutorial can be found in the documentation |
+| Opencv2         | Opencv3        | 运算       |
+| --------------- | -------------- | ---------- |
+| CV_MOP_CLOSE    | MORPH_CLOSE    | 闭运算     |
+| CV_MOP_OPEN     | MORPH_OPEN     | 开运算     |
+| CV_MOP_GRADIENT | MORPH_GRADIENT | 取图形梯度 |
+| CV_MOP_TOPHAT   | MORPH_TOPHAT   | 冒顶       |
+| CV_MOP_BLACKHAT | MORPH_BLACKHAT | 黑帽运算   |
+| CV_MOP_ERODE    | MORPH_ERODE    | 腐蚀       |
+| CV_MOP_DILATE   | MORPH_DILATE   | 膨胀       |
 
 
+
+开运算 Opening operation
+
+先erode 后 dilation
+
+
+
+闭运算 closing operation
+
+先dilation后erode
+
+
+
+example
+
+```c++
+Mat img = imread("/path/to/image.jpg");
+Mat element = getStructingElement(MORPH_RECT,Size(15, 15));//定义卷积核
+morphologyEx(img, img, MORPH_GRADIENT, element);
+```
+
+
+
+#### 漫水填充法（FloodFill)
+
+漫水填充法顾名思义 利用特定的颜色来填充联通的区域， 通常被用来标记或者分离图像的一部分
+
+那这个联通的区域是利用算法自动选中的， 主要是查找种子点连通的颜色相同的点， 类似PhotoShop的魔术棒， 以及画家中的油漆桶
+
+参考 https://www.youtube.com/watch?v=ldqAmkdthHY
+
+```c++
+//OpenCV3
+int cv::floodFill	(	InputOutputArray 	image,
+Point 	seedPoint,
+Scalar 	newVal,
+Rect * 	rect = 0,
+Scalar 	loDiff = Scalar(),
+Scalar 	upDiff = Scalar(),
+int 	flags = 4 
+)	
+  
+int cv::floodFill	(	InputOutputArray 	image,
+InputOutputArray 	mask,
+Point 	seedPoint,
+Scalar 	newVal,
+Rect * 	rect = 0,
+Scalar 	loDiff = Scalar(),
+Scalar 	upDiff = Scalar(),
+int 	flags = 4 
+)	
+  
+  
+//OpenCV2
+C: void cvFloodFill(CvArr* image, CvPoint seed_point, CvScalar new_val, CvScalar lo_diff=cvScalarAll(0), CvScalar up_diff=cvScalarAll(0), CvConnectedComp* comp=NULL, int flags=4, CvArr* mask=NULL )¶
+```
+
+
+
+输入输出图像不做解释
+
+seedPoint 就是起始点， 从这个起始点开始进行填充
+
+newval 表示被改变色彩的值
+
+如果一个像素点的值不低于被染色的相邻点减去loDiff且不高于加上upDiff， 那么该像素点就会被染色
+
+
+
+
+
+mask必须是U8C1， 像素宽和高 大于原图像 各1个像素点， 
+
+第一个重载函数中， 
+
+第二个重载函数中， 多了一个参数mask， 这个mask是预先设置好的， 传入函数可以当做**不要**被填充的区域
+
+因为函数不会覆盖mask的非0区域
+
+
+
+flags 参数
+
+如果没有设置， 默认1， 
+
+分为三个部分， 低八位（0~7）可设置为4, 8， 4表示填充时只考虑像素水平方向和垂直方向的相邻点
+
+如果设置为8， 还会包含对角方向的相邻点
+
+高8位（16~23）可设置为
+
+CV_FLOODFILL_FIXED_RANGE：此为OpenCV2 ， 如果设置为这个表示某个相邻点与种子点再差值内才填充
+
+CV_FLOODFILL_MASK_ONLY : 此为Opencv3， 只填充mask
+
+中8位(8~15) : 表示要填充mask的值， 如果设置为0则用1填充
+
+所有的flags可也用OR操作连接
+
+
+
+Ex. 如果想填充mask而不是原图像， 并且填充固定像素值范围， 设定值为38， 则可也如下输入
+
+```
+flags = 8 | FLOODFILL_MASK_ONLY | FLOODFILL_FIXED_RANGE | (38<<8)
+```
+
+
+
+#### 图像金字塔
+
+其实就是对于图像尺寸的缩放（放大或者放小）
+
+图像金字塔主要是上采样以及下采样的结果， 分别有
+
+1. 高斯金字塔Gaussianpyramid ：用来下采样
+2. 拉普拉斯金字塔Laplacianpyramid ： 用来从金字塔低层图像重建上层未采样的图像 也是预测残差
 
 
 
@@ -1047,7 +1499,6 @@ int 	mode,
 int 	method,
 Point 	offset = Point() 
 )	
-
 ```
 
 - image : source image 二值图
@@ -1067,7 +1518,6 @@ Point 	offset = Point()
 double cv::contourArea	(	InputArray 	contour,
 bool 	oriented = false 
 )	
-
 ```
 
 计算出contour的面积
@@ -1089,7 +1539,6 @@ void cv::drawContours	(	InputOutputArray 	image,
         int 	maxLevel = INT_MAX,
         Point 	offset = Point() 
 )	
-
 ```
 
 thickness 如果填入FILLED的话， 轮廓内会被填满颜色
@@ -1106,7 +1555,6 @@ thickness 如果填入FILLED的话， 轮廓内会被填满颜色
 
 ```c++
 Rect cv::boundingRect	(	InputArray 	array	)	
-
 ```
 
 找到可以用最小矩形框出物体的（x, y, w, h)
@@ -1149,7 +1597,6 @@ int main( int argc, char** argv )
     imshow( "Components", dst );
     waitKey(0);
 }
-
 ```
 
 
@@ -1232,7 +1679,6 @@ cv::xfeatures2d::SIFT
 cv::xfeatures::BriefDescriptorExtractor
 cv::xfeatures2d::FREAK
 cv::xfeatures2d::StarDetector
-
 ```
 
 **SIFT 特征关键点检测**
@@ -1247,7 +1693,6 @@ cv::xfeatures2d::StarDetector
 #include <opencv2/xfeatures2d/nonfree.hpp>
 
 using namespace cv::xfeatures2d;
-
 ```
 
 使用的例子
@@ -1267,7 +1712,6 @@ Mat img_keypoints_1; Mat img_keypoints_2;
 //将找到的关键点绘制在img_keypoints_1上
 drawKeypoints( image1, keyPoints_1, img_keypoints_1, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
 drawKeypoints( image2, keyPoints_2, img_keypoints_2, Scalar::all(-1), DrawMatchesFlags::DEFAULT );
-
 ```
 
 **Fast 特征关键点检测**
@@ -1286,7 +1730,6 @@ drawKeypoints(srcImage,detectKeyPoint,keyPointImage2,Scalar(0,0,255),DrawMatches
 imshow("src image",srcImage);
 imshow("keyPoint image1",keyPointImage1);
 imshow("keyPoint image2",keyPointImage2);
-
 ```
 
 
@@ -1328,7 +1771,6 @@ int 	scoreType = ORB::HARRIS_SCORE,
 int 	patchSize = 31,
 int 	fastThreshold = 20 
 )	
-
 ```
 
 
@@ -1346,7 +1788,6 @@ OutputArray 	mask = noArray(),
 const int 	maxIters = 2000,
 const double 	confidence = 0.995 
 )	
-
 ```
 
 使用函数 [findHomography](http://opencv.willowgarage.com/documentation/cpp/calib3d_camera_calibration_and_3d_reconstruction.html?#findHomography) 寻找匹配上的关键点的变换
@@ -1374,7 +1815,6 @@ const double 	confidence = 0.995
 
 ```c++
 createTrackbar(conststring & trackbarname , conststring & winname, int value, int count, TrackCallback onchange =0, void*userdata=0)
-
 ```
 
 前面两个分别为bar名字和窗口名字， 第三个为bar初始值. count为可以达到的最大位置值
@@ -1398,7 +1838,6 @@ typedef Vec<unchar, 4> Vec4b;
 typedef Vec<int, 2> Vec2i;
 typedef Vec<float, 2> Vec2f;
 typedef Vec<double, 2> Vec2b;
-
 ```
 
 #### Scalar对象类型
@@ -1411,7 +1850,6 @@ typedef Vec<double, 2> Vec2b;
 Scalar s0(0); //赋值
 Scalar s1(0.0, 1.0, 2.0, 3.0); //赋多值
 Scalar s2(s1);//靠另一个值赋予值
-
 ```
 
 #### Point 对象类型
@@ -1423,7 +1861,6 @@ typedef Point_<int> Point2i;
 typedef POint2i Point;
 typedef Point_<float> POint2f;
 typedef Point_<double> POint2d;
-
 ```
 
 Ex.
@@ -1436,7 +1873,6 @@ pt.y = 8;
 // 或者如下
 
 Point pt =  Point(10, 8);
-
 ```
 
 
@@ -1450,7 +1886,6 @@ Size s(100, 100);
 Mat img = Mat::zeros(s, CV_8UC1); // 100 x 100 单通道matrix
 s.width = 200;
 int area = s.area(); //returns 100x200
-
 ```
 
 #### Rect 对象
@@ -1467,18 +1902,54 @@ int area = s.area(); //returns 100x200
 Mat img = imread("lena,jpg");
 Rect rect_roi(0, 0, 100, 100);
 Mat img_roi = img(r); //原图 从左上x:0 y:0的位置 取height, width = 100进行剪裁
-
 ```
+
+常用的rect的成员函数有
+
+area() : 返回面积
+
+tl(): 返回左上角点坐标
+
+br(): 返回右下角点坐标
+
+求两矩形的交集与并集
+
+```c++
+Rect rect = rect1 & rect2; //交集
+Rect rect = rect1 | rect2; //并集
+```
+
+```c++
+Rect rectshift = rect + point; //平移
+Rect rectScale = rect + size; //缩放
+```
+
+
+
+
+
+
+
+
+
+
 
 #### C 接口
 
-CvSize
+| 结构     | 成员                    | 说明   |
+| -------- | ----------------------- | ------ |
+| CvSize   | int  width, height      |        |
+| CvRect   | int x, y, width, height |        |
+| CvPoint  | int x, y                |        |
+| CvScalar | Dobule val[4]           | RGBA值 |
+|          |                         |        |
+|          |                         |        |
 
-CvRect
 
-CvPoint
 
-CvScalar
+
+
+
 
 
 
@@ -1494,7 +1965,6 @@ void cvMatchTemplate	(	const CvArr * 	image,
   CvArr * 	result,
   int 	method 
   )	
-
 ```
 
 Example
@@ -1546,7 +2016,6 @@ cvRectangle(result, minPoint, cv::Point(minPoint.x + black->width, minPoint.y + 
 cvShowImage("【匹配后的计算过程图像】", result);
 cv::waitKey(0);
 
-
 ```
 
 
@@ -1563,7 +2032,6 @@ cv::waitKey(0);
 
 ```
 cv::VideoCapture() 类 
-
 ```
 
 
@@ -1606,7 +2074,6 @@ for (;;)
 
 //记得释放掉资源
 cap.release();
-
 ```
 
 
@@ -1617,7 +2084,6 @@ cap.release();
 
 ```c++
 cv::VideoWriter::VideoWriter
-
 ```
 
 VideoWriter主要构造函数如下
@@ -1635,7 +2101,6 @@ cv::VideoWriter::VideoWriter	(
 cv::VideoWriter::VideoWriter	(	const String & 	filename, int 	apiPreference,
 int 	fourcc, double 	fps, Size 	frameSize, bool 	isColor = true 
 )	
-
 ```
 
 - fps：以多大的帧率保存*
@@ -1669,7 +2134,6 @@ void main()
 		}
 	}
 }
-
 ```
 
 
@@ -1692,7 +2156,6 @@ cout << "time consume: " << (last / getTickFrequency() * 1000) << endl;
 
 //总次数/一秒内重复的次数*1000 = 时间(ms) 
 //总次数/一秒内重复的次数*1000000 = 时间(s)
-
 ```
 
 
@@ -1701,7 +2164,6 @@ opencv3.2 自带模块
 
 ```
 cv::TickMeter
-
 ```
 
 
@@ -1716,7 +2178,6 @@ timer.start();
 // do something ...
 timer.stop();
 std::cout << timer.getTimeSec();//输出是s
-
 ```
 
 getTimeMicro() //返回微秒 us
@@ -1757,7 +2218,6 @@ while(true)
                 cv::Point(30, 30), cv::FONT_HERSHEY_SIMPLEX, 0.8, cv::Scalar(0,0,255));
     cv::imshow("CSI Camera",frame); 
 }
-
 ```
 
 
@@ -1776,7 +2236,6 @@ while(true)
 
 ```c++
 void namedWindow(const string& winname, int flags=WINDOW_AUTOSIZE )
-
 ```
 
 **name** – window的名字， 也可用来辨别是否为同一个视窗
@@ -1793,7 +2252,6 @@ void namedWindow(const string& winname, int flags=WINDOW_AUTOSIZE )
 
 ```c++
 void convertTo( OutputArray m, int rtype, double alpha=1, double beta=0 ) const
-
 ```
 
 
@@ -1802,7 +2260,6 @@ void convertTo( OutputArray m, int rtype, double alpha=1, double beta=0 ) const
 
 ```cpp
 m(x,y) = saturate_cast<rType>(alpha * (*this) (x,y) + beta);
-
 ```
 
 > m       – 目标矩阵。如果m在运算前没有合适的尺寸或类型，将被重新分配。
@@ -1821,7 +2278,6 @@ m(x,y) = saturate_cast<rType>(alpha * (*this) (x,y) + beta);
 
 ```c++
 void cv::putText (intputoutputarray img, const String & text, Point org, int fontFace,o double fontscale, Scalar color, int thickness = 1, int lineType = LINE_8,  bool bottomLeftOrigin = false)
-
 ```
 
 - img : Image.
@@ -1838,7 +2294,6 @@ void cv::putText (intputoutputarray img, const String & text, Point org, int fon
 
 ```c++
 Size cv::getTextSize(const String & text, int fontFace, double fontScale, int thickness, int * baseLine)
-
 ```
 
 输入传入的text以及给定的字体大小等 计算出需要的长度和宽度
@@ -1877,7 +2332,6 @@ line(img, textOrg + Point(0, thickness),
 // then put the text itself
 putText(img, text, textOrg, fontFace, fontScale,
         Scalar::all(255), thickness, 8);
-
 ```
 
 
@@ -1918,7 +2372,6 @@ Hello 文件夹
 ├── cmake-build-debug
 ├── main.cpp
 └── src
-
 ```
 
 
@@ -1943,7 +2396,6 @@ set(src main.cpp)
 
 add_executable(${PROJECT_NAME} ${src})
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
-
 ```
 
 
@@ -2023,7 +2475,6 @@ int main()
     return 0;
 }
 
-
 ```
 
 #### CSI camera Video Write的方式
@@ -2031,7 +2482,6 @@ int main()
 ```C++
 cv::VideoWriter writer;
     writer.open("appsrc ! autovideoconvert ! omxh265enc ! matroskamux ! filesink location=test.mkv ", 0, (double)25, cv::Size(1024, 1024), true);
-
 ```
 
 
@@ -2061,7 +2511,6 @@ return ('nvarguscamerasrc ! '
 'nvvidconv flip-method=2 ! '
 'video/x-raw, format=I420 ! '
 'appsink max-buffers=1 drop=True ')
-
 ```
 
 c++ version 
@@ -2073,7 +2522,6 @@ std::string gstreamer_pipeline (int capture_width, int capture_height, int displ
            "/1 ! nvvidconv flip-method=" + std::to_string(flip_method) + " ! video/x-raw, width=(int)" + std::to_string(display_width) + ", height=(int)" +
            std::to_string(display_height) + ", format=(string)BGRx ! videoconvert ! video/x-raw, format=(string)BGR ! appsink max-buffers=1 drop=True ";
 }
-
 ```
 
 
@@ -2135,7 +2583,6 @@ name_param 可以@开头， 将参数定义为默认输入
 
 
 CommnadLineParser parser(argc, argv, keys);
-
 ```
 
 
@@ -2175,7 +2622,6 @@ CV_32FC1   CV_32FC2  CV_32FC3   CV_32FC4
 
 CV_64F   (64 bit 浮点)
 CV_64FC1   CV_64FC2  CV_64FC3  CV_64FC4  
-
 ```
 
 
@@ -2185,5 +2631,4 @@ CV_64FC1   CV_64FC2  CV_64FC3  CV_64FC4
 ### 参考资料
 
 1. OpenCV 文档目录 https://docs.opencv.org/
-
 2. OpenCV3编程入门 毛星云
